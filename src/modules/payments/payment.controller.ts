@@ -6,26 +6,23 @@ import prisma from "~/prisma";
 export const createPayment = async (req: Request, res: Response) => {
   const orderId = Number(req.params.orderId);
   try {
-    const payment = await service.createMockQRPayment(orderId);
+    const payment = await service.createMidtransPayment(orderId);
     return sendResponse(res, 201, "payment created", payment);
   } catch (err: any) {
+    console.error("Midtrans create error:", err);
     return sendResponse(res, 400, err.message);
   }
 };
 
-// webhook endpoint that provider would call
+// webhook endpoint for Midtrans
 export const webhook = async (req: Request, res: Response) => {
-  // mock provider will send { providerId, status }
-  const { providerId, status } = req.body;
-  if (status === "PAID") {
-    try {
-      const result = await service.handleMockProviderNotification(providerId);
-      return res.status(200).send("OK");
-    } catch (err) {
-      return res.status(400).send("ERROR");
-    }
+  try {
+    await service.handleMidtransNotification(req.body);
+    return res.status(200).send("OK");
+  } catch (err) {
+    console.error("Midtrans webhook error:", err);
+    return res.status(400).send("ERROR");
   }
-  return res.status(200).send("IGNORED");
 };
 
 export const getPaymentStatus = async (req: Request, res: Response) => {

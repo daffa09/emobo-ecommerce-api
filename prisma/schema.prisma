@@ -18,6 +18,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   orders       Order[]
   refreshTokens RefreshToken[]
+  reviews      Review[]
 }
 
 model RefreshToken {
@@ -42,21 +43,25 @@ model Product {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   orderItems  OrderItem[]
+  reviews     Review[]
 }
 
 model Order {
-  id           Int         @id @default(autoincrement())
-  user         User        @relation(fields: [userId], references: [id])
-  userId       Int
-  totalAmount  Int
-  status       OrderStatus @default(PENDING)
-  shippingAddr Json
-  phone        String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  items        OrderItem[]
-  payment      Payment?
-  trackingNo   String?
+  id               Int         @id @default(autoincrement())
+  user             User        @relation(fields: [userId], references: [id])
+  userId           Int
+  totalAmount      Int
+  shippingCost     Int         @default(0)
+  shippingService  String?     // e.g., "jne reg"
+  status           OrderStatus @default(PENDING)
+  shippingAddr     Json
+  phone            String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  items            OrderItem[]
+  payment          Payment?
+  reviews          Review[]
+  trackingNo       String?
 }
 
 model OrderItem {
@@ -73,14 +78,28 @@ model Payment {
   id           Int         @id @default(autoincrement())
   order        Order       @relation(fields: [orderId], references: [id])
   orderId      Int         @unique
-  provider     String      // e.g., "duitku" | "flip" | "mock"
-  providerId   String?     // id returned by provider
+  provider     String      // e.g., "midtrans"
+  providerId   String?     // id returned by provider (order_id in midtrans)
+  snapToken    String?     // Midtrans Snap Token
+  redirectUrl  String?     // Midtrans Redirect URL
   amount       Int
-  qrisCode     String?     // QR code payload or URL
   status       PaymentStatus @default(PENDING)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   paidAt       DateTime?
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   Int
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
 }
 
 enum Role {

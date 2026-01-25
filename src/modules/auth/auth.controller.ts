@@ -31,7 +31,14 @@ export const login = async (req: Request, res: Response) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  return sendResponse(res, 200, "login success", { access_token });
+  return sendResponse(res, 200, "login success", { 
+    access_token,
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    }
+  });
 };
 
 export const refresh = async (req: Request, res: Response) => {

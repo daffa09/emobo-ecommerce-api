@@ -1,21 +1,64 @@
 import prisma from "~/prisma";
+import midtransClient from "midtrans-client";
 
-export const createMockQRPayment = async (orderId: number) => {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+const snap = new midtransClient.Snap({
+  isProduction: process.env.MIDTRANS_IS_PRODUCTION === "true",
+  serverKey: process.env.MIDTRANS_SERVER_KEY || "",
+  clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
+});
+
+export const createMidtransPayment = async (orderId: number) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      user: true,
+      items: {
+        include: { product: true },
+      },
+    },
+  });
+
   if (!order) throw new Error("Order not found");
 
-  // check if payment exists
   const existing = await prisma.payment.findUnique({ where: { orderId } });
-  if (existing) return existing;
+  if (existing && existing.snapToken) return existing;
 
-  // create payment
-  const payment = await prisma.payment.create({
-    data: {
-      orderId,
-      provider: "mock",
-      providerId: `MOCK-${Date.now()}`,
+  const parameter = {
+    transaction_details: {
+      order_id: `ORDER-${orderId}-${Date.now()}`,
+      gross_amount: order.totalAmount,
+    },
+    customer_details: {
+      first_name: order.user.name || "Customer",
+      email: order.user.email,
+      phone: order.phone,
+    },
+    item_details: order.items.map((item) => ({
+      id: item.product.sku.toString(),
+      price: item.unitPrice,
+      quantity: item.quantity,
+      name: item.product.name,
+    })),
+  };
+
+  const transaction = await snap.createTransaction(parameter);
+
+  const payment = await prisma.payment.upsert({
+    where: { orderId },
+    update: {
+      provider: "midtrans",
+      providerId: parameter.transaction_details.order_id,
+      snapToken: transaction.token,
+      redirectUrl: transaction.redirect_url,
       amount: order.totalAmount,
-      qrisCode: `QR-MOCK-${orderId}-${Date.now()}`,
+    },
+    create: {
+      orderId,
+      provider: "midtrans",
+      providerId: parameter.transaction_details.order_id,
+      snapToken: transaction.token,
+      redirectUrl: transaction.redirect_url,
+      amount: order.totalAmount,
       status: "PENDING",
     },
   });
@@ -23,23 +66,53 @@ export const createMockQRPayment = async (orderId: number) => {
   return payment;
 };
 
-export const handleMockProviderNotification = async (providerId: string) => {
-  const payment = await prisma.payment.findFirst({ where: { providerId } });
+export const handleMidtransNotification = async (notification: any) => {
+  const statusResponse = await snap.transaction.notification(notification);
+  const orderIdRaw = statusResponse.order_id;
+  const transactionStatus = statusResponse.transaction_status;
+  const fraudStatus = statusResponse.fraud_status;
+
+  // orderIdRaw is something like ORDER-123-1712345678
+  const parts = orderIdRaw.split("-");
+  const orderId = parseInt(parts[1]);
+
+  const payment = await prisma.payment.findUnique({ where: { orderId } });
   if (!payment) throw new Error("Payment not found");
 
-  if (payment.status === "PAID") return payment;
+  let paymentStatus: "PAID" | "FAILED" | "PENDING" = "PENDING";
 
-  // update payment
-  const updated = await prisma.payment.update({
+  if (transactionStatus === "capture") {
+    if (fraudStatus === "challenge") {
+      paymentStatus = "PENDING";
+    } else if (fraudStatus === "accept") {
+      paymentStatus = "PAID";
+    }
+  } else if (transactionStatus === "settlement") {
+    paymentStatus = "PAID";
+  } else if (
+    transactionStatus === "cancel" ||
+    transactionStatus === "deny" ||
+    transactionStatus === "expire"
+  ) {
+    paymentStatus = "FAILED";
+  } else if (transactionStatus === "pending") {
+    paymentStatus = "PENDING";
+  }
+
+  const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
-    data: { status: "PAID", paidAt: new Date() },
+    data: {
+      status: paymentStatus === "PAID" ? "PAID" : paymentStatus === "FAILED" ? "FAILED" : "PENDING",
+      paidAt: paymentStatus === "PAID" ? new Date() : null,
+    },
   });
 
-  // update order status
-  await prisma.order.update({
-    where: { id: payment.orderId },
-    data: { status: "PROCESSING" },
-  });
+  if (paymentStatus === "PAID") {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: "PROCESSING" },
+    });
+  }
 
-  return updated;
+  return updatedPayment;
 };

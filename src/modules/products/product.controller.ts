@@ -27,5 +27,15 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   await service.deleteProduct(id);
-  return sendResponse(res, 200, "product deleted", []);
+  return sendResponse(res, 200, "product deleted");
+};
+
+export const getTopSelling = async (req: Request, res: Response) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 5;
+  try {
+    const products = await service.getTopSellingProducts(limit);
+    return sendResponse(res, 200, "fetch data success", products);
+  } catch (err: any) {
+    return sendResponse(res, 400, err.message);
+  }
 };

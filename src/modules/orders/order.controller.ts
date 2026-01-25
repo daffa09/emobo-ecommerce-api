@@ -4,14 +4,21 @@ import * as service from "./order.service";
 
 export const createOrder = async (req: Request, res: Response) => {
   // @ts-ignore
-  const user = req.user;
-  const { items, shippingAddr, phone } = req.body;
+  const userId = req.user.id;
+  const { items, shippingAddr, phone, shippingCost, shippingService } = req.body;
 
   try {
-    const order = await service.createOrder(user.id, items, shippingAddr, phone);
+    const order = await service.createOrder(
+      userId,
+      items,
+      shippingAddr,
+      phone,
+      shippingCost,
+      shippingService
+    );
     return sendResponse(res, 201, "order created", order);
   } catch (err: any) {
-    return sendResponse(res, 400, err.message || "create order failed");
+    return sendResponse(res, 400, err.message);
   }
 };
 
