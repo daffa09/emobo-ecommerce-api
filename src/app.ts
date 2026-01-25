@@ -1,6 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import path from "path";
 import authRoute from "./modules/auth/auth.route";
 import productRoute from "./modules/products/product.route";
 import customerRoute from "./modules/customers/customer.route";
@@ -9,6 +10,7 @@ import paymentRoute from "./modules/payments/payment.route";
 import shippingRoute from "./modules/shipping/shipping.route";
 import reviewRoute from "./modules/reviews/review.route";
 import reportRoute from "./modules/reports/report.route";
+import uploadRoute from "./modules/upload/upload.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
@@ -17,6 +19,9 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Serve uploaded images statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 import docsRoute from "./routes/docs.route";
 
@@ -28,6 +33,7 @@ app.use("/api/v1/payments", paymentRoute);
 app.use("/api/v1/shipping", shippingRoute);
 app.use("/api/v1/reviews", reviewRoute);
 app.use("/api/v1/reports", reportRoute);
+app.use("/api/v1/upload", uploadRoute);
 app.use("/api/v1/documentation", docsRoute);
 
 app.get("/api/v1/health", (_req, res) => res.json({ status: "ok" }));
