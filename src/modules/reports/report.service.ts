@@ -1,4 +1,4 @@
-import prisma from "~/prisma";
+import prisma from "../../prisma";
 
 export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
   const orders = await prisma.order.findMany({

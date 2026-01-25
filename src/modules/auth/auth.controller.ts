@@ -1,9 +1,9 @@
 // src/modules/auth/auth.controller.ts
 import { Request, Response } from "express";
-import { sendResponse } from "~/utils/response";
+import { sendResponse } from "../../utils/response";
 import { findUserByEmail, registerUser, createSessionTokens, rotateRefreshToken } from "./auth.service";
 import bcrypt from "bcryptjs";
-import prisma from "~/prisma";
+import prisma from "../../prisma";
 
 export const register = async (req: Request, res: Response) => {
   const { email, password, name } = req.body;

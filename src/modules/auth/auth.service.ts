@@ -1,7 +1,7 @@
 // src/modules/auth/auth.service.ts
-import prisma from "~/prisma";
+import prisma from "../../prisma";
 import bcrypt from "bcryptjs";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "~/utils/jwt";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../utils/jwt";
 import { add } from "date-fns";
 
 export const registerUser = async (email: string, password: string, name?: string) => {

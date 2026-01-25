@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { sendResponse } from "~/utils/response";
+import { sendResponse } from "../../utils/response";
 import * as service from "./product.service";
 
 export const getPublicProducts = async (_req: Request, res: Response) => {

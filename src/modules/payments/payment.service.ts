@@ -1,4 +1,4 @@
-import prisma from "~/prisma";
+import prisma from "../../prisma";
 import midtransClient from "midtrans-client";
 
 const snap = new midtransClient.Snap({

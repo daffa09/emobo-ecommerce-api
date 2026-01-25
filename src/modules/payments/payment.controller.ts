@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { sendResponse } from "~/utils/response";
+import { sendResponse } from "../../utils/response";
 import * as service from "./payment.service";
-import prisma from "~/prisma";
+import prisma from "../../prisma";
 
 export const createPayment = async (req: Request, res: Response) => {
   const orderId = Number(req.params.orderId);

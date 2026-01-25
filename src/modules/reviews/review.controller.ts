@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { sendResponse } from "~/utils/response";
+import { sendResponse } from "../../utils/response";
 import * as service from "./review.service";
 
 export const postReview = async (req: Request, res: Response) => {

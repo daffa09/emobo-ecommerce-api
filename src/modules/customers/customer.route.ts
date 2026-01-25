@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as ctrl from "./customer.controller";
-import { authMiddleware } from "~/middleware/auth.middleware";
-import { adminOnly } from "~/middleware/role.middleware";
+import { authMiddleware } from "../../middleware/auth.middleware";
+import { adminOnly } from "../../middleware/role.middleware";
 
 const router = Router();
 

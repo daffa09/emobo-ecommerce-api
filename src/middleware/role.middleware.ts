@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { sendResponse } from "~/utils/response";
+import { sendResponse } from "../utils/response";
 
 export const adminOnly = (req: Request, res: Response, next: NextFunction) => {
   // @ts-ignore
