@@ -1,8 +1,17 @@
 import { Router } from "express";
 import * as ctrl from "./order.controller";
 import { authMiddleware } from "../../middleware/auth.middleware";
+import { adminOnly } from "../../middleware/role.middleware";
 
 const router = Router();
+
+// User routes
+router.post("/", authMiddleware, ctrl.createOrder);
+router.get("/", authMiddleware, ctrl.listOrdersForUser);
+
+// Admin only routes
+router.get("/all", authMiddleware, adminOnly, ctrl.listAllOrders);
+router.put("/:id/status", authMiddleware, adminOnly, ctrl.updateOrderStatus);
 
 /**
  * @swagger

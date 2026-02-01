@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { login, register, refresh, logout } from "./auth.controller";
+import { login, register, refresh, logout, verifyUser, forgotPassword, handleResetPassword } from "./auth.controller";
 const router = Router();
 
 /**
@@ -91,6 +91,28 @@ router.post("/refresh", refresh);
  *       200:
  *         description: Logout success
  */
+/**
+ * @swagger
+ * /auth/verify-email:
+ *   get:
+ *     summary: Verify user email
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Email verified
+ *       400:
+ *         description: Invalid token
+ */
+router.get("/verify-email", verifyUser);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", handleResetPassword);
+
 router.post("/logout", logout);
 
 export default router;

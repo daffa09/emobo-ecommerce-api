@@ -9,16 +9,22 @@ generator client {
 
 
 model User {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
-  passwordHash String
-  name         String?
-  role         Role      @default(CUSTOMER)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  orders       Order[]
-  refreshTokens RefreshToken[]
-  reviews      Review[]
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  passwordHash      String
+  name              String?
+  phone             String?
+  image             String?
+  role              Role      @default(CUSTOMER)
+  isEmailVerified   Boolean   @default(false)
+  verificationToken String?   @unique
+  resetPasswordToken  String?   @unique
+  resetPasswordExpires DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  orders            Order[]
+  refreshTokens     RefreshToken[]
+  reviews           Review[]
 }
 
 model RefreshToken {
@@ -35,9 +41,10 @@ model Product {
   id          Int       @id @default(autoincrement())
   sku         String    @unique
   name        String
-  brand       String
-  description String?
   price       Int
+  brand       String
+  category    String    @default("General")
+  description String?
   stock       Int
   images      String[]  @default([])
   createdAt   DateTime  @default(now())

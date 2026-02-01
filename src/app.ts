@@ -11,6 +11,7 @@ import shippingRoute from "./modules/shipping/shipping.route";
 import reviewRoute from "./modules/reviews/review.route";
 import reportRoute from "./modules/reports/report.route";
 import uploadRoute from "./modules/upload/upload.routes";
+import userRoute from "./modules/users/user.route";
 import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
@@ -34,6 +35,7 @@ app.use("/api/v1/shipping", shippingRoute);
 app.use("/api/v1/reviews", reviewRoute);
 app.use("/api/v1/reports", reportRoute);
 app.use("/api/v1/upload", uploadRoute);
+app.use("/api/v1/users", userRoute);
 app.use("/api/v1/documentation", docsRoute);
 
 app.get("/api/v1/health", (_req, res) => res.json({ status: "ok" }));

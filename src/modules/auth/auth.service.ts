@@ -3,17 +3,51 @@ import prisma from "../../prisma";
 import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../utils/jwt";
 import { add } from "date-fns";
+import { v4 as uuidv4 } from "uuid";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../../utils/email";
 
 export const registerUser = async (email: string, password: string, name?: string) => {
   const hash = bcrypt.hashSync(password, 8);
+  const verificationToken = uuidv4();
+
   const user = await prisma.user.create({
-    data: { email, passwordHash: hash, name, role: "CUSTOMER" },
+    data: { 
+      email, 
+      passwordHash: hash, 
+      name, 
+      role: "CUSTOMER",
+      isEmailVerified: false,
+      verificationToken
+    },
   });
+
+  // Send verification email
+  try {
+    await sendVerificationEmail(email, verificationToken);
+  } catch (error) {
+    console.error("Failed to send verification email:", error);
+  }
+
   return user;
 };
 
 export const findUserByEmail = async (email: string) => {
   return prisma.user.findUnique({ where: { email } });
+};
+
+export const verifyEmailService = async (token: string) => {
+  const user = await prisma.user.findUnique({ where: { verificationToken: token } });
+  if (!user) throw new Error("Invalid or expired verification token");
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { 
+      isEmailVerified: true, 
+      verificationToken: null 
+    },
+  });
+
+  return user;
 };
 
 export const createSessionTokens = async (user: any) => {
@@ -55,4 +89,45 @@ export const rotateRefreshToken = async (oldToken: string) => {
   } catch (err) {
     throw err;
   }
+};
+
+export const requestPasswordReset = async (email: string) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) throw new Error("Email not found");
+
+  const resetToken = uuidv4();
+  const resetExpires = add(new Date(), { hours: 1 });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: resetExpires,
+    },
+  });
+
+  await sendPasswordResetEmail(email, resetToken);
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  const user = await prisma.user.findUnique({
+    where: { resetPasswordToken: token },
+  });
+
+  if (!user || !user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+    throw new Error("Reset token is invalid or has expired");
+  }
+
+  const hash = bcrypt.hashSync(newPassword, 8);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: hash,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    },
+  });
+
+  return user;
 };

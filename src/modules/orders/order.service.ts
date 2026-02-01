@@ -76,3 +76,21 @@ export const listOrdersByUser = async (userId: number) => {
     orderBy: { createdAt: "desc" },
   });
 };
+
+export const listAllOrders = async () => {
+  return prisma.order.findMany({
+    include: { 
+      items: { include: { product: true } },
+      user: { select: { id: true, name: true, email: true } },
+      payment: true
+    },
+    orderBy: { createdAt: "desc" },
+  });
+};
+
+export const updateStatus = async (id: number, status: any) => {
+  return prisma.order.update({
+    where: { id },
+    data: { status },
+  });
+};

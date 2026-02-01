@@ -35,3 +35,23 @@ export const listOrdersForUser = async (req: Request, res: Response) => {
   const orders = await service.listOrdersByUser(user.id);
   return sendResponse(res, 200, "fetch data success", orders);
 };
+
+export const listAllOrders = async (req: Request, res: Response) => {
+  try {
+    const orders = await service.listAllOrders();
+    return sendResponse(res, 200, "fetch data success", orders);
+  } catch (err: any) {
+    return sendResponse(res, 400, err.message);
+  }
+};
+
+export const updateOrderStatus = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const { status } = req.body;
+  try {
+    const order = await service.updateStatus(id, status);
+    return sendResponse(res, 200, "order status updated", order);
+  } catch (err: any) {
+    return sendResponse(res, 400, err.message);
+  }
+};
