@@ -33,12 +33,21 @@ export const createMidtransPayment = async (orderId: number) => {
       email: order.user.email,
       phone: order.phone,
     },
-    item_details: order.items.map((item) => ({
-      id: item.product.sku.toString(),
-      price: item.unitPrice,
-      quantity: item.quantity,
-      name: item.product.name,
-    })),
+    item_details: [
+      ...order.items.map((item) => ({
+        id: item.product.sku.toString(),
+        price: item.unitPrice,
+        quantity: item.quantity,
+        name: item.product.name.substring(0, 50), // Midtrans max 50 chars
+      })),
+      // Add shipping cost as separate item
+      ...(order.shippingCost > 0 ? [{
+        id: "SHIPPING",
+        price: order.shippingCost,
+        quantity: 1,
+        name: order.shippingService || "Biaya Pengiriman",
+      }] : []),
+    ],
   };
 
   const transaction = await snap.createTransaction(parameter);
