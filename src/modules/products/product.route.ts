@@ -23,6 +23,7 @@ const router = Router();
  *         description: List of products
  */
 router.get("/public", controller.getPublicProducts); // public
+router.get("/public/:id", controller.getById); // public detail
 router.get("/top-selling", controller.getTopSelling);
 
 /**

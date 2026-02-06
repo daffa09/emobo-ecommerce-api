@@ -94,3 +94,47 @@ export const updateStatus = async (id: number, status: any) => {
     data: { status },
   });
 };
+
+export const cancelOrder = async (orderId: number, userId: number, isAdmin: boolean = false) => {
+  return await prisma.$transaction(async (tx: any) => {
+    // 1. Get order with items and current status
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true }
+    });
+
+    if (!order) throw new Error("Order not found");
+    
+    // 2. Ownership check
+    if (!isAdmin && order.userId !== userId) {
+      throw new Error("Unauthorized to cancel this order");
+    }
+
+    // 3. Status check - only PENDING can be cancelled
+    if (order.status !== "PENDING") {
+      throw new Error(`Cannot cancel order in ${order.status} status`);
+    }
+
+    // 4. Restore stock
+    for (const item of order.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } }
+      });
+    }
+
+    // 5. Update order status
+    const updatedOrder = await tx.order.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED" }
+    });
+
+    // 6. Update payment status if exists
+    await tx.payment.updateMany({
+      where: { orderId: orderId },
+      data: { status: "FAILED" }
+    });
+
+    return updatedOrder;
+  });
+};

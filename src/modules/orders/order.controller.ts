@@ -24,8 +24,17 @@ export const createOrder = async (req: Request, res: Response) => {
 
 export const getOrder = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  // @ts-ignore
+  const { id: userId, role } = req.user;
+  
   const order = await service.getOrderWithItems(id);
   if (!order) return sendResponse(res, 404, "order not found");
+
+  // IDOR Protection: Check if user owns order or is Admin
+  if (role !== "ADMIN" && order.userId !== userId) {
+    return sendResponse(res, 403, "Forbidden: You do not have permission to view this order");
+  }
+
   return sendResponse(res, 200, "fetch data success", order);
 };
 
@@ -53,5 +62,18 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     return sendResponse(res, 200, "order status updated", order);
   } catch (err: any) {
     return sendResponse(res, 400, err.message);
+  }
+};
+export const cancelOrder = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  // @ts-ignore
+  const { id: userId, role } = req.user;
+  
+  try {
+    const order = await service.cancelOrder(id, userId, role === "ADMIN");
+    return sendResponse(res, 200, "order cancelled and stock restored successfully", order);
+  } catch (err: any) {
+    const statusCode = err.message.includes("Unauthorized") ? 403 : 400;
+    return sendResponse(res, statusCode, err.message);
   }
 };

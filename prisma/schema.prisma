@@ -38,19 +38,23 @@ model RefreshToken {
 }
 
 model Product {
-  id          Int       @id @default(autoincrement())
-  sku         String    @unique
-  name        String
-  price       Int
-  brand       String
-  category    String    @default("General")
-  description String?
-  stock       Int
-  images      String[]  @default([])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  orderItems  OrderItem[]
-  reviews     Review[]
+  id             Int       @id @default(autoincrement())
+  sku            String    @unique
+  name           String
+  price          Int
+  brand          String
+  category       String    @default("General")
+  description    String?
+  stock          Int       @default(0)
+  images         String[]  @default([])
+  specifications Json      @default("{}")
+  condition      String    @default("NEW") // e.g. "NEW", "USED", "REFURBISHED"
+  warranty       String?   // e.g. "1 Year Official"
+  weight         Int       @default(1500) // weight in grams
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  orderItems     OrderItem[]
+  reviews        Review[]
 }
 
 model Order {

@@ -121,6 +121,28 @@ export const handleMidtransNotification = async (notification: any) => {
       where: { id: orderId },
       data: { status: "PROCESSING" },
     });
+  } else if (paymentStatus === "FAILED") {
+    // Restore stock if payment failed/expired/cancelled
+    await prisma.$transaction(async (tx: any) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { items: true }
+      });
+
+      // Only restore if it was still PENDING to avoid double restoration
+      if (order && order.status === "PENDING") {
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } }
+          });
+        }
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: "CANCELLED" }
+        });
+      }
+    });
   }
 
   return updatedPayment;

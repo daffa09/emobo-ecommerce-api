@@ -8,6 +8,7 @@ const router = Router();
 // User routes
 router.post("/", authMiddleware, ctrl.createOrder);
 router.get("/", authMiddleware, ctrl.listOrdersForUser);
+router.put("/:id/cancel", authMiddleware, ctrl.cancelOrder);
 
 // Admin only routes
 router.get("/all", authMiddleware, adminOnly, ctrl.listAllOrders);

@@ -17,6 +17,13 @@ export const getPublicProducts = async (req: Request, res: Response) => {
   return sendResponse(res, 200, "fetch data success", data);
 };
 
+export const getById = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const data = await service.getProductById(id);
+  if (!data) return sendResponse(res, 404, "product not found");
+  return sendResponse(res, 200, "fetch data success", data);
+};
+
 export const getProductsAdmin = async (_req: Request, res: Response) => {
   const data = await service.listProductsForAdmin();
   return sendResponse(res, 200, "fetch data success", data);

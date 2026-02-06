@@ -72,6 +72,10 @@ export const deleteProduct = async (id: number) => {
   return prisma.product.delete({ where: { id } });
 };
 
+export const getProductById = async (id: number) => {
+  return prisma.product.findUnique({ where: { id } });
+};
+
 export const getTopSellingProducts = async (limit: number = 5) => {
   const result = await prisma.orderItem.groupBy({
     by: ["productId"],
