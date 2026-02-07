@@ -21,6 +21,18 @@ export const registerUser = async (email: string, password: string, name?: strin
     },
   });
 
+  // Notify admins when a new customer registers
+  try {
+    const { notifyAdmins } = require("../notifications/notification.controller");
+    await notifyAdmins(
+      "New Customer Joined",
+      `A new customer, ${name || email}, has registered on the platform.`,
+      "CUSTOMER"
+    );
+  } catch (error) {
+    console.error("Failed to notify admins about new customer:", error);
+  }
+
   // Send verification email
   try {
     await sendVerificationEmail(email, verificationToken);

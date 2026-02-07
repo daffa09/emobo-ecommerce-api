@@ -10,7 +10,12 @@ export const createOrder = async (
 ) => {
   // fetch products to get price & check stock
   const productIds = items.map((i) => i.productId);
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+  const products = await prisma.product.findMany({ 
+    where: { 
+      id: { in: productIds },
+      deletedAt: null
+    } 
+  });
   // compute total and build order items
   let lineTotal = 0;
   const orderItemsData = items.map((i) => {
@@ -65,7 +70,10 @@ export const createOrder = async (
 export const getOrderWithItems = async (id: number) => {
   return prisma.order.findUnique({
     where: { id },
-    include: { items: { include: { product: true } } },
+    include: { 
+      items: { include: { product: true } },
+      payment: true
+    },
   });
 };
 

@@ -31,3 +31,14 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
   if (!payment) return sendResponse(res, 404, "payment not found");
   return sendResponse(res, 200, "fetch data success", payment);
 };
+
+export const verifyPayment = async (req: Request, res: Response) => {
+  const orderId = Number(req.params.orderId);
+  try {
+    const payment = await service.verifyPayment(orderId);
+    return sendResponse(res, 200, "payment verified", payment);
+  } catch (err: any) {
+    console.error("Midtrans verify error:", err);
+    return sendResponse(res, 400, err.message);
+  }
+};

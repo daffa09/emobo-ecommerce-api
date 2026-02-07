@@ -24,6 +24,12 @@ export const createOrder = async (req: Request, res: Response) => {
 
 export const getOrder = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
+  console.log("GET order called with ID:", id, "typeof:", typeof id);
+  
+  if (isNaN(id)) {
+    return sendResponse(res, 400, "Invalid order ID");
+  }
+
   // @ts-ignore
   const { id: userId, role } = req.user;
   
@@ -59,6 +65,20 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   const { status } = req.body;
   try {
     const order = await service.updateStatus(id, status);
+    
+    // Notify customer about order status update
+    try {
+      const { createNotification } = require("../notifications/notification.controller");
+      await createNotification(
+        order.userId,
+        "Order Status Updated",
+        `Your order #${order.id} status has been updated to ${status}.`,
+        "ORDER"
+      );
+    } catch (error) {
+      console.error("Failed to create notification for order status update:", error);
+    }
+
     return sendResponse(res, 200, "order status updated", order);
   } catch (err: any) {
     return sendResponse(res, 400, err.message);

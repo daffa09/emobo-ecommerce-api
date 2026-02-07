@@ -77,5 +77,6 @@ router.post("/webhook", ctrl.webhook); // public endpoint called by provider
  *         description: Payment not found
  */
 router.get("/:orderId/status", authMiddleware, ctrl.getPaymentStatus);
+router.get("/:orderId/verify", authMiddleware, ctrl.verifyPayment);
 
 export default router;

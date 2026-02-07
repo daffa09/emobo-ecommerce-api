@@ -11,8 +11,8 @@ export const listPublicProducts = async (params: {
   sortBy?: string;
 }) => {
   const { limit = 8, offset = 0, brand, category, search, minPrice, maxPrice, sortBy } = params;
-
-  const where: any = {};
+  
+  const where: any = { deletedAt: null };
   
   if (brand) {
     const brands = brand.split(",");
@@ -57,7 +57,9 @@ export const listPublicProducts = async (params: {
 };
 
 export const listProductsForAdmin = async () => {
-  return prisma.product.findMany();
+  return prisma.product.findMany({
+    where: { deletedAt: null },
+  });
 };
 
 export const createProduct = async (data: any) => {
@@ -69,6 +71,26 @@ export const updateProduct = async (id: number, data: any) => {
 };
 
 export const deleteProduct = async (id: number) => {
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: { orderItems: true },
+      },
+    },
+  });
+
+  if (!product) throw new Error("Product not found");
+
+  // If product has stock or has been part of a transaction, soft delete it
+  if (product.stock > 0 || product._count.orderItems > 0) {
+    return prisma.product.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  // Otherwise, hard delete it
   return prisma.product.delete({ where: { id } });
 };
 
@@ -94,6 +116,7 @@ export const getTopSellingProducts = async (limit: number = 5) => {
   const products = await prisma.product.findMany({
     where: {
       id: { in: productIds },
+      deletedAt: null,
     },
   });
 
