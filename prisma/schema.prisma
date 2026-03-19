@@ -16,6 +16,9 @@ model User {
   phone             String?
   image             String?
   address           String?
+  addressNotes      String?
+  latitude          Float?
+  longitude         Float? 
   role              Role      @default(CUSTOMER)
   isEmailVerified   Boolean   @default(false)
   verificationToken String?   @unique
@@ -76,6 +79,9 @@ model Order {
   payment          Payment?
   reviews          Review[]
   trackingNo       String?
+  estimatedDays    Int?        // ETD from RajaOngkir (e.g. 2 for "2 days")
+  shippedAt        DateTime?   // When the order was marked SHIPPED
+  deliveryNotifiedAt DateTime? // When the "please confirm" notification was sent
 }
 
 model OrderItem {

@@ -5,7 +5,7 @@ import * as service from "./order.service";
 export const createOrder = async (req: Request, res: Response) => {
   // @ts-ignore
   const userId = req.user.id;
-  const { items, shippingAddr, phone, shippingCost, shippingService } = req.body;
+  const { items, shippingAddr, phone, shippingCost, shippingService, estimatedDays } = req.body;
 
   try {
     const order = await service.createOrder(
@@ -14,7 +14,8 @@ export const createOrder = async (req: Request, res: Response) => {
       shippingAddr,
       phone,
       shippingCost,
-      shippingService
+      shippingService,
+      estimatedDays
     );
     return sendResponse(res, 201, "order created", order);
   } catch (err: any) {
@@ -70,8 +71,8 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     try {
       const { createNotification } = require("../notifications/notification.controller");
       const notifMessage = trackingNo
-        ? `Your order #${order.id} has been shipped! Tracking number: ${trackingNo}`
-        : `Your order #${order.id} status has been updated to ${status}.`;
+        ? `Pesanan #${order.id} Anda telah dikirim! No Resi: ${trackingNo}`
+        : `Status pesanan #${order.id} Anda telah diperbarui menjadi ${status}.`;
       await createNotification(
         order.userId,
         "Order Status Updated",
@@ -87,6 +88,35 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     return sendResponse(res, 400, err.message);
   }
 };
+
+export const confirmOrderReceived = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  // @ts-ignore
+  const { id: userId } = req.user;
+
+  try {
+    const order = await service.confirmOrderReceived(id, userId);
+    
+    // Send a thank-you notification
+    try {
+      const { createNotification } = require("../notifications/notification.controller");
+      await createNotification(
+        userId,
+        "Pesanan Dikonfirmasi",
+        `Terima kasih telah mengkonfirmasi penerimaan pesanan #${order.id}! Semoga puas dengan produknya.`,
+        "ORDER"
+      );
+    } catch (error) {
+      console.error("Failed to create confirmation notification:", error);
+    }
+
+    return sendResponse(res, 200, "order confirmed as received", order);
+  } catch (err: any) {
+    const statusCode = err.message.includes("Unauthorized") ? 403 : 400;
+    return sendResponse(res, statusCode, err.message);
+  }
+};
+
 export const cancelOrder = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   // @ts-ignore

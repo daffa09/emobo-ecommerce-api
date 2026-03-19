@@ -35,6 +35,22 @@ export const markAsRead = async (req: Request, res: Response) => {
   }
 };
 
+export const markAllRead = async (req: Request, res: Response) => {
+  // @ts-ignore
+  const userId = req.user.id;
+
+  try {
+    await prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
+
+    return sendResponse(res, 200, "all notifications marked as read");
+  } catch (err: any) {
+    return sendResponse(res, 400, err.message);
+  }
+};
+
 export const deleteNotification = async (req: Request, res: Response) => {
   const { id } = req.params;
   // @ts-ignore

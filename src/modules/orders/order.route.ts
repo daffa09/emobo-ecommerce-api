@@ -9,6 +9,7 @@ const router = Router();
 router.post("/", authMiddleware, ctrl.createOrder);
 router.get("/", authMiddleware, ctrl.listOrdersForUser);
 router.put("/:id/cancel", authMiddleware, ctrl.cancelOrder);
+router.post("/:id/confirm-received", authMiddleware, ctrl.confirmOrderReceived);
 
 // Admin only routes
 router.get("/all", authMiddleware, adminOnly, ctrl.listAllOrders);

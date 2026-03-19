@@ -15,6 +15,7 @@ import userRoute from "./modules/users/user.route";
 import notificationRoute from "./modules/notifications/notification.route";
 import contactRoute from "./modules/contact/contact.route";
 import { errorHandler } from "./middleware/error.middleware";
+import { startCronJobs } from "./cron";
 
 const app = express();
 
@@ -45,5 +46,8 @@ app.use("/api/v1/documentation", docsRoute);
 app.get("/api/v1/health", (_req, res) => res.json({ status: "ok" }));
 
 app.use(errorHandler);
+
+// Start scheduled background jobs
+startCronJobs();
 
 export default app;
