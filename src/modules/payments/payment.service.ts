@@ -95,22 +95,27 @@ const updatePaymentAndOrder = async (statusResponse: any) => {
   const transactionStatus = statusResponse.transaction_status;
   const fraudStatus = statusResponse.fraud_status;
 
-  console.log(`Processing status update for ${orderIdRaw}. Status: ${transactionStatus}, Fraud: ${fraudStatus}`);
+  console.log(`[PAYMENT DEBUG] Processing status update for ${orderIdRaw}`);
+  console.log(`[PAYMENT DEBUG] Transaction Status: ${transactionStatus}, Fraud Status: ${fraudStatus}`);
 
   // orderIdRaw is something like ORDER-123-1712345678
   const parts = orderIdRaw.split("-");
   const orderId = parseInt(parts[1]);
 
+  console.log(`[PAYMENT DEBUG] Parsed Order ID: ${orderId}`);
+
   if (isNaN(orderId)) {
-    console.error(`Invalid orderId parsed from ${orderIdRaw}`);
+    console.error(`[PAYMENT DEBUG] Invalid orderId parsed from ${orderIdRaw}`);
     throw new Error("Invalid order ID format");
   }
 
   const payment = await prisma.payment.findUnique({ where: { orderId } });
   if (!payment) {
-    console.error(`Payment not found for orderId: ${orderId}`);
+    console.error(`[PAYMENT DEBUG] Payment not found in database for orderId: ${orderId}`);
     throw new Error("Payment not found");
   }
+
+  console.log(`[PAYMENT DEBUG] Found payment record with status: ${payment.status}`);
 
   let paymentStatus: "PAID" | "FAILED" | "PENDING" = "PENDING";
 
@@ -132,7 +137,7 @@ const updatePaymentAndOrder = async (statusResponse: any) => {
     paymentStatus = "PENDING";
   }
 
-  console.log(`Determined payment status: ${paymentStatus}`);
+  console.log(`[PAYMENT DEBUG] Determined final payment status: ${paymentStatus}`);
 
   const updatedPayment = await prisma.payment.update({
     where: { id: payment.id },
@@ -142,14 +147,17 @@ const updatePaymentAndOrder = async (statusResponse: any) => {
     },
   });
 
+  console.log(`[PAYMENT DEBUG] Updated payment record in DB. New status: ${updatedPayment.status}`);
+
   if (paymentStatus === "PAID") {
-    console.log(`Updating Order ${orderId} to PROCESSING`);
-    await prisma.order.update({
+    console.log(`[PAYMENT DEBUG] Updating Order ${orderId} status to PROCESSING`);
+    const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: { status: "PROCESSING" },
     });
+    console.log(`[PAYMENT DEBUG] Order ${orderId} updated successfully to ${updatedOrder.status}`);
   } else if (paymentStatus === "FAILED") {
-    console.log(`Restoring stock for Order ${orderId} due to payment failure`);
+    console.log(`[PAYMENT DEBUG] Handling failed payment for Order ${orderId}`);
     // Restore stock if payment failed/expired/cancelled
     await prisma.$transaction(async (tx: any) => {
       const order = await tx.order.findUnique({
@@ -169,6 +177,7 @@ const updatePaymentAndOrder = async (statusResponse: any) => {
           where: { id: orderId },
           data: { status: "CANCELLED" }
         });
+        console.log(`[PAYMENT DEBUG] Order ${orderId} cancelled and stock restored`);
       }
     });
   }

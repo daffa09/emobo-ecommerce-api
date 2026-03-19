@@ -24,7 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Serve uploaded images statically
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/v1/uploads', express.static(path.join(__dirname, '../uploads')));
 
 import docsRoute from "./routes/docs.route";
 

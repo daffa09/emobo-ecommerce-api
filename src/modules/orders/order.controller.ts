@@ -62,17 +62,20 @@ export const listAllOrders = async (req: Request, res: Response) => {
 
 export const updateOrderStatus = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { status } = req.body;
+  const { status, trackingNo } = req.body;
   try {
-    const order = await service.updateStatus(id, status);
+    const order = await service.updateStatus(id, status, trackingNo);
     
     // Notify customer about order status update
     try {
       const { createNotification } = require("../notifications/notification.controller");
+      const notifMessage = trackingNo
+        ? `Your order #${order.id} has been shipped! Tracking number: ${trackingNo}`
+        : `Your order #${order.id} status has been updated to ${status}.`;
       await createNotification(
         order.userId,
         "Order Status Updated",
-        `Your order #${order.id} status has been updated to ${status}.`,
+        notifMessage,
         "ORDER"
       );
     } catch (error) {

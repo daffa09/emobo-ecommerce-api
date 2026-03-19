@@ -96,10 +96,13 @@ export const listAllOrders = async () => {
   });
 };
 
-export const updateStatus = async (id: number, status: any) => {
+export const updateStatus = async (id: number, status: any, trackingNo?: string) => {
   return prisma.order.update({
     where: { id },
-    data: { status },
+    data: {
+      status,
+      ...(trackingNo !== undefined ? { trackingNo } : {}),
+    },
   });
 };
 
