@@ -1,0 +1,12 @@
+node_modules
+dist
+npm-debug.log
+.env
+.git
+.gitignore
+prisma/migrations
+*.md
+Dockerfile
+.dockerignore
+uploads/*
+!uploads/.gitkeep
