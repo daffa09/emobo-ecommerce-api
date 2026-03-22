@@ -31,7 +31,12 @@ export const createOrder = async (
     };
   });
 
-  const totalAmount = lineTotal + shippingCost;
+  const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
+  const APP_FEE = process.env.APP_FEE ? parseInt(process.env.APP_FEE) : 1000;
+
+  const taxAmount = Math.round(lineTotal * (PPN_RATE / 100));
+  const appFee = APP_FEE;
+  const totalAmount = lineTotal + shippingCost + taxAmount + appFee;
 
   // create order and decrement stocks in transaction
   const order = await prisma.$transaction(async (tx: any) => {
@@ -45,6 +50,8 @@ export const createOrder = async (
         phone,
         status: "PENDING",
         estimatedDays: estimatedDays || null,
+        taxAmount,
+        appFee,
       },
     });
 
@@ -74,17 +81,43 @@ export const getOrderWithItems = async (id: number) => {
     where: { id },
     include: { 
       items: { include: { product: true } },
-      payment: true
+      payment: true,
+      reviews: true
     },
   });
 };
 
-export const listOrdersByUser = async (userId: number) => {
-  return prisma.order.findMany({
-    where: { userId },
-    include: { items: true },
-    orderBy: { createdAt: "desc" },
-  });
+export const listOrdersByUser = async (userId: number, params?: { search?: string; limit?: number; offset?: number }) => {
+  const where: any = { userId };
+
+  if (params?.search) {
+    where.items = {
+      some: {
+        product: {
+          name: {
+            contains: params.search,
+            mode: 'insensitive'
+          }
+        }
+      }
+    };
+  }
+
+  const limit = params?.limit || 10;
+  const offset = params?.offset || 0;
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: { items: { include: { product: true } } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.order.count({ where })
+  ]);
+
+  return { orders, total };
 };
 
 export const listAllOrders = async () => {

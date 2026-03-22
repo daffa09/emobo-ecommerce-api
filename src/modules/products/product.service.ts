@@ -49,11 +49,27 @@ export const listPublicProducts = async (params: {
       take: Number(limit),
       skip: Number(offset),
       orderBy: Object.keys(orderBy).length > 0 ? orderBy : { createdAt: "desc" },
+      include: {
+        reviews: { select: { rating: true } },
+        _count: { select: { reviews: true } }
+      }
     }),
     prisma.product.count({ where }),
   ]);
 
-  return { products, total };
+  const formattedProducts = products.map((p: any) => {
+    const totalRating = p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+    const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
+    
+    const { reviews, ...rest } = p; 
+    return {
+      ...rest,
+      rating: Number(averageRating),
+      reviewsCount: p._count.reviews
+    };
+  });
+
+  return { products: formattedProducts, total };
 };
 
 export const listProductsForAdmin = async () => {
@@ -95,7 +111,25 @@ export const deleteProduct = async (id: number) => {
 };
 
 export const getProductById = async (id: number) => {
-  return prisma.product.findUnique({ where: { id } });
+  const p = await prisma.product.findUnique({ 
+    where: { id },
+    include: {
+      reviews: { select: { rating: true } },
+      _count: { select: { reviews: true } }
+    }
+  });
+
+  if (!p) return null;
+
+  const totalRating = p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+  const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
+  
+  const { reviews, ...rest } = p; 
+  return {
+    ...rest,
+    rating: Number(averageRating),
+    reviewsCount: p._count.reviews
+  };
 };
 
 export const getTopSellingProducts = async (limit: number = 5) => {
@@ -118,12 +152,21 @@ export const getTopSellingProducts = async (limit: number = 5) => {
       id: { in: productIds },
       deletedAt: null,
     },
+    include: {
+      reviews: { select: { rating: true } },
+      _count: { select: { reviews: true } }
+    }
   });
 
   return result.map((r) => {
-    const p = products.find((pp) => pp.id === r.productId);
+    const p: any = products.find((pp) => pp.id === r.productId);
+    const totalRating = p.reviews.reduce((sum: number, rev: any) => sum + rev.rating, 0);
+    const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
+    const { reviews, ...rest } = p;
     return {
-      ...p,
+      ...rest,
+      rating: Number(averageRating),
+      reviewsCount: p._count.reviews,
       totalSold: r._sum.quantity,
     };
   });

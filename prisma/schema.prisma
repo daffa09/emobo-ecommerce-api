@@ -82,6 +82,8 @@ model Order {
   estimatedDays    Int?        // ETD from RajaOngkir (e.g. 2 for "2 days")
   shippedAt        DateTime?   // When the order was marked SHIPPED
   deliveryNotifiedAt DateTime? // When the "please confirm" notification was sent
+  taxAmount        Int         @default(0)
+  appFee           Int         @default(0)
 }
 
 model OrderItem {

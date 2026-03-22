@@ -48,8 +48,17 @@ export const getOrder = async (req: Request, res: Response) => {
 export const listOrdersForUser = async (req: Request, res: Response) => {
   // @ts-ignore
   const user = req.user;
-  const orders = await service.listOrdersByUser(user.id);
-  return sendResponse(res, 200, "fetch data success", orders);
+  const { search, limit, offset } = req.query;
+
+  const params: any = {};
+  if (typeof search === "string" && search.trim() !== "") {
+    params.search = search;
+  }
+  if (limit) params.limit = Number(limit);
+  if (offset) params.offset = Number(offset);
+
+  const result = await service.listOrdersByUser(user.id, params);
+  return sendResponse(res, 200, "fetch data success", result);
 };
 
 export const listAllOrders = async (req: Request, res: Response) => {
