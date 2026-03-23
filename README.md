@@ -2,13 +2,14 @@
 
 <div align="center">
 
-![Node.js](https://img.shields.io/badge/Node.js-18+-green)
+![Node.js](https://img.shields.io/badge/Node.js-22+-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 ![Express](https://img.shields.io/badge/Express-4.x-lightgrey)
 ![Prisma](https://img.shields.io/badge/Prisma-5.x-blueviolet)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue)
+![Docker](https://img.shields.io/badge/Docker-supported-blue)
 
-RESTful API backend for Emobo e-commerce platform built with Express.js, Prisma ORM, and PostgreSQL.
+RESTful API backend for Emobo e-commerce platform built with Express.js, Prisma ORM, PostgreSQL, and Docker.
 
 </div>
 
@@ -75,11 +76,12 @@ RESTful API backend for Emobo e-commerce platform built with Express.js, Prisma 
 
 | Category | Technology |
 |----------|------------|
-| **Runtime** | Node.js 18+ |
+| **Runtime** | Node.js 22+ |
 | **Language** | TypeScript |
 | **Framework** | Express.js |
 | **ORM** | Prisma |
 | **Database** | PostgreSQL |
+| **Container** | Docker |
 | **Authentication** | JWT (jsonwebtoken) |
 | **Validation** | Zod |
 | **Password Hashing** | bcrypt |
@@ -173,6 +175,21 @@ npm run dev
 ```
 
 Server will start at `http://localhost:5000`
+
+### Running with Docker
+
+1. **Build the image**
+```bash
+docker build -t emobo-api .
+```
+
+2. **Run the container**
+```bash
+docker run -p 5000:5000 --env-file .env emobo-api
+```
+
+> [!TIP]
+> Use `host.docker.internal` for `DATABASE_URL` if your PostgreSQL is running on the host machine (Windows/macOS).
 
 ---
 
@@ -438,6 +455,18 @@ npx kill-port 5000          # Kill process on port 5000
 
 ---
 
+---
+
+## 🔄 CI/CD
+
+This project uses **GitHub Actions** for continuous integration and delivery.
+
+- **Build & Push**: Triggered on push to `main` branch.
+- **Workflow**: `.github/workflows/main.yml`
+- **Docker Hub**: Automatically pushes image to `daffa09/emobo-ecommerce-api:latest`.
+
+---
+
 ## 🚀 Deployment
 
 ### Production Checklist
@@ -452,6 +481,15 @@ npx kill-port 5000          # Kill process on port 5000
 - [ ] Set up monitoring
 - [ ] Configure rate limiting
 - [ ] Set up backups
+
+### Docker Compose (Full Setup)
+
+For a complete setup with UI and Gateway, use the `docker-compose.yml` located in the `deployments/` folder:
+
+```bash
+cd deployments
+docker compose up -d
+```
 
 ### Recommended Platforms
 
