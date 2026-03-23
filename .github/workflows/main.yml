@@ -3,7 +3,7 @@ name: Build & Push Docker Image (api)
 on:
   push:
     branches:
-      - main
+      - master
 
 env:
   IMAGE_NAME: daffa09/emobo-ecommerce-api
