@@ -7,7 +7,7 @@ on:
 
 env:
   IMAGE_NAME: daffa09/emobo-ecommerce-api
-  IMAGE_VERSION: 1.0.1
+  IMAGE_VERSION: 1.0.2
 
 jobs:
   build-and-push:
@@ -43,21 +43,18 @@ jobs:
           echo "✅ Build and push success!"
           echo "📦 Image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}"
 
-      # - name: 🚀 Deploy API Zero Downtime
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ secrets.SERVER_HOST }}
-      #     username: ${{ secrets.SERVER_USER }}
-      #     key: ${{ secrets.SERVER_KEY }}
-      #     script: |
-      #       cd ~/skripsi
-      #       docker compose pull api
-      #       docker compose up -d --scale api=2 --no-recreate api
-      #       echo "⏳ Waiting for API to boot..."
-      #       sleep 15
-      #       docker compose up -d --scale api=1 api
-      #       docker compose exec -T gateway nginx -s reload
-      #       docker image prune -f
-      #       echo "🕷️ Running Manual Crawling Script..."
-      #       docker compose exec -T api node dist/scripts/manual-crawling.js
-      #       docker image prune -f
+      - name: 🚀 Deploy API Zero Downtime
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_KEY }}
+          script: |
+            cd ~/skripsi
+            docker compose pull api
+            docker compose up -d --scale api=2 --no-recreate api
+            echo "⏳ Waiting for API to boot..."
+            sleep 15
+            docker compose up -d --scale api=1 api
+            docker compose exec -T gateway nginx -s reload
+            docker image prune -f

@@ -16,6 +16,8 @@ export const getProfile = async (req: Request, res: Response) => {
       image: true,
       address: true,
       addressNotes: true,
+      provinceId: true,
+      cityId: true,
       latitude: true,
       longitude: true,
       role: true,
@@ -32,13 +34,13 @@ export const getProfile = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   // @ts-ignore
   const userId = req.user.id;
-  const { name, phone, image, address, addressNotes, latitude, longitude } = req.body;
+  const { name, phone, image, address, addressNotes, provinceId, cityId, latitude, longitude } = req.body;
 
   try {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { 
-        name, phone, image, address, addressNotes,
+        name, phone, image, address, addressNotes, provinceId, cityId,
         ...(latitude !== undefined ? { latitude: parseFloat(latitude) } : {}),
         ...(longitude !== undefined ? { longitude: parseFloat(longitude) } : {}),
       },
@@ -50,6 +52,8 @@ export const updateProfile = async (req: Request, res: Response) => {
         image: true,
         address: true,
         addressNotes: true,
+        provinceId: true,
+        cityId: true,
         latitude: true,
         longitude: true,
         role: true,

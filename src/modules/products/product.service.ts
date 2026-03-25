@@ -75,6 +75,7 @@ export const listPublicProducts = async (params: {
 export const listProductsForAdmin = async () => {
   return prisma.product.findMany({
     where: { deletedAt: null },
+    orderBy: { updatedAt: "desc" },
   });
 };
 

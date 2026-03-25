@@ -18,6 +18,8 @@ model User {
   image             String?
   address           String?
   addressNotes      String?
+  provinceId        String?
+  cityId            String?
   latitude          Float?
   longitude         Float? 
   role              Role      @default(CUSTOMER)
