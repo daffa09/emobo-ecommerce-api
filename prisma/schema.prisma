@@ -64,6 +64,7 @@ model Product {
   deletedAt      DateTime?
   orderItems     OrderItem[]
   reviews        Review[]
+  purchaseOrderItems PurchaseOrderItem[]
 }
 
 model Order {
@@ -168,4 +169,23 @@ model ContactMessage {
   phone     String
   message   String
   createdAt DateTime @default(now())
+}
+
+model PurchaseOrder {
+  id                  Int                 @id @default(autoincrement())
+  receiptUrl          String
+  totalItemsOnReceipt Int
+  notes               String?
+  items               PurchaseOrderItem[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+}
+
+model PurchaseOrderItem {
+  id              Int           @id @default(autoincrement())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId Int
+  product         Product       @relation(fields: [productId], references: [id])
+  productId       Int
+  quantity        Int
 }

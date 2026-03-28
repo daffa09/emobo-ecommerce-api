@@ -20,13 +20,68 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG, PNG, WebP, and PDF are allowed.'));
     }
   },
+});
+
+/**
+ * Upload document (Image or PDF)
+ * POST /api/upload/document
+ * Protected: Admin only
+ */
+router.post('/document', authMiddleware, adminOnly, upload.single('document'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No document file provided' });
+    }
+
+    const file = req.file;
+    let filename: string;
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    
+    // If it's an image and not a PDF, we can still optimize it if it's png/jpg
+    // but for PO receipts, maybe we just want to keep the original quality or convert to webp
+    
+    if (file.mimetype === 'application/pdf') {
+      filename = `${uuidv4()}.pdf`;
+      const filepath = path.join(uploadsDir, filename);
+      await fs.writeFile(filepath, file.buffer);
+    } else {
+      // It's an image, convert to optimized webp
+      filename = `${uuidv4()}.webp`;
+      const filepath = path.join(uploadsDir, filename);
+      
+      await sharp(file.buffer)
+        .webp({ quality: 85 })
+        .resize(1600, 1600, { // Slightly larger for documents to keep text readable
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .toFile(filepath);
+    }
+
+    const fileUrl = `/uploads/${filename}`;
+
+    res.status(200).json({
+      message: 'Document uploaded successfully',
+      url: fileUrl,
+      filename: filename,
+    });
+  } catch (error: any) {
+    console.error('Document upload error:', error);
+    res.status(500).json({ message: 'Failed to upload document', error: error.message });
+  }
 });
 
 /**
