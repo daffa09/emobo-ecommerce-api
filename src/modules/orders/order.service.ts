@@ -34,9 +34,11 @@ export const createOrder = async (
   const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
   const APP_FEE = process.env.APP_FEE ? parseInt(process.env.APP_FEE) : 1000;
 
-  const taxAmount = Math.round(lineTotal * (PPN_RATE / 100));
+  // Since prices already include PPN, we calculate taxAmount from the lineTotal
+  const taxAmount = Math.round(lineTotal - (lineTotal / (1 + PPN_RATE / 100)));
   const appFee = APP_FEE;
-  const totalAmount = lineTotal + shippingCost + taxAmount + appFee;
+  // totalAmount does NOT add taxAmount because it's already in lineTotal
+  const totalAmount = lineTotal + shippingCost + appFee;
 
   // create order and decrement stocks in transaction
   const order = await prisma.$transaction(async (tx: any) => {

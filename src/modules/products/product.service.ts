@@ -8,11 +8,17 @@ export const listPublicProducts = async (params: {
   search?: string;
   minPrice?: number;
   maxPrice?: number;
+  condition?: string;
   sortBy?: string;
 }) => {
-  const { limit = 8, offset = 0, brand, category, search, minPrice, maxPrice, sortBy } = params;
+  const { limit = 8, offset = 0, brand, category, search, minPrice, maxPrice, condition, sortBy } = params;
   
   const where: any = { deletedAt: null };
+  
+  if (condition) {
+    const conditions = condition.split(",");
+    where.condition = { in: conditions };
+  }
   
   if (brand) {
     const brands = brand.split(",");
@@ -79,11 +85,19 @@ export const listProductsForAdmin = async () => {
   });
 };
 
+const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
+
 export const createProduct = async (data: any) => {
+  if (data.price) {
+    data.price = Math.round(data.price * (1 + PPN_RATE / 100));
+  }
   return prisma.product.create({ data });
 };
 
 export const updateProduct = async (id: number, data: any) => {
+  if (data.price) {
+    data.price = Math.round(data.price * (1 + PPN_RATE / 100));
+  }
   return prisma.product.update({ where: { id }, data });
 };
 

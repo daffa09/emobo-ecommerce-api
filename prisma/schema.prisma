@@ -48,8 +48,10 @@ model RefreshToken {
 model Product {
   id             Int       @id @default(autoincrement())
   sku            String    @unique
+  serialNumber   String?   @unique
   name           String
   price          Int
+  buyPrice       Int       @default(0)
   brand          String
   category       String    @default("General")
   description    String?
