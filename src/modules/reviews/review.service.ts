@@ -1,17 +1,18 @@
 import prisma from "../../prisma";
 
 export const createReview = async (data: {
-  orderId: number;
-  productId: number;
-  userId: number;
+  orderId: string;
+  productId: string;
+  userId: string;
   rating: number;
   comment?: string;
 }) => {
   const order = await prisma.order.findUnique({
     where: { id: data.orderId },
+    include: { biodata: true }
   });
 
-  if (!order || order.userId !== data.userId) {
+  if (!order || order.biodata.userId !== data.userId) {
     throw new Error("Invalid order or user");
   }
 
@@ -23,7 +24,7 @@ export const createReview = async (data: {
     data: {
       orderId: data.orderId,
       productId: data.productId,
-      userId: data.userId,
+      biodataId: order.biodataId,
       rating: data.rating,
       comment: data.comment,
     },
@@ -32,11 +33,11 @@ export const createReview = async (data: {
   return review;
 };
 
-export const getProductReviews = async (productId: number) => {
+export const getProductReviews = async (productId: string) => {
   return prisma.review.findMany({
     where: { productId },
     include: {
-      user: {
+      biodata: {
         select: { name: true },
       },
     },

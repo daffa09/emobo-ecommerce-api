@@ -43,7 +43,7 @@ export const handleListPurchaseOrders = async (req: Request, res: Response) => {
 export const handleGetPurchaseOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const po = await pos.getPurchaseOrderById(Number(id));
+    const po = await pos.getPurchaseOrderById(id);
 
     if (!po) {
       return res.status(404).json({ message: "Purchase Order not found" });

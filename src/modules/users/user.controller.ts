@@ -11,24 +11,45 @@ export const getProfile = async (req: Request, res: Response) => {
     select: {
       id: true,
       email: true,
-      name: true,
-      phone: true,
-      image: true,
-      address: true,
-      addressNotes: true,
-      provinceId: true,
-      cityId: true,
-      latitude: true,
-      longitude: true,
       role: true,
       isEmailVerified: true,
       createdAt: true,
+      biodata: {
+        select: {
+          name: true,
+          phone: true,
+          image: true,
+          address: true,
+          addressNotes: true,
+          provinceId: true,
+          cityId: true,
+          latitude: true,
+          longitude: true,
+        }
+      }
     },
   });
 
   if (!user) return sendResponse(res, 404, "User not found");
 
-  return sendResponse(res, 200, "fetch profile success", user);
+  const flatUser = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt,
+    name: user.biodata?.name,
+    phone: user.biodata?.phone,
+    image: user.biodata?.image,
+    address: user.biodata?.address,
+    addressNotes: user.biodata?.addressNotes,
+    provinceId: user.biodata?.provinceId,
+    cityId: user.biodata?.cityId,
+    latitude: user.biodata?.latitude,
+    longitude: user.biodata?.longitude,
+  };
+
+  return sendResponse(res, 200, "fetch profile success", flatUser);
 };
 
 export const updateProfile = async (req: Request, res: Response) => {
@@ -40,28 +61,49 @@ export const updateProfile = async (req: Request, res: Response) => {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { 
-        name, phone, image, address, addressNotes, provinceId, cityId,
-        ...(latitude !== undefined ? { latitude: parseFloat(latitude) } : {}),
-        ...(longitude !== undefined ? { longitude: parseFloat(longitude) } : {}),
+        biodata: {
+          upsert: {
+            create: {
+              name: name || "User",
+              phone: phone || "",
+              image, address, addressNotes, provinceId, cityId,
+              latitude: latitude !== undefined ? parseFloat(latitude) : null,
+              longitude: longitude !== undefined ? parseFloat(longitude) : null,
+            },
+            update: {
+              name, phone, image, address, addressNotes, provinceId, cityId,
+              ...(latitude !== undefined ? { latitude: parseFloat(latitude) } : {}),
+              ...(longitude !== undefined ? { longitude: parseFloat(longitude) } : {}),
+            }
+          }
+        }
       },
       select: {
         id: true,
         email: true,
-        name: true,
-        phone: true,
-        image: true,
-        address: true,
-        addressNotes: true,
-        provinceId: true,
-        cityId: true,
-        latitude: true,
-        longitude: true,
         role: true,
         createdAt: true,
+        biodata: true
       },
     });
 
-    return sendResponse(res, 200, "profile updated", user);
+    const flatUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+      name: user.biodata?.name,
+      phone: user.biodata?.phone,
+      image: user.biodata?.image,
+      address: user.biodata?.address,
+      addressNotes: user.biodata?.addressNotes,
+      provinceId: user.biodata?.provinceId,
+      cityId: user.biodata?.cityId,
+      latitude: user.biodata?.latitude,
+      longitude: user.biodata?.longitude,
+    };
+
+    return sendResponse(res, 200, "profile updated", flatUser);
   } catch (err: any) {
     return sendResponse(res, 400, err.message);
   }
@@ -70,13 +112,13 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const getAdminContact = async (_req: Request, res: Response) => {
   const admin = await prisma.user.findFirst({
     where: { 
-      role: { name: "ADMIN" },
-      phone: { not: null }
+      role: "ADMIN",
+      biodata: { phone: { not: "" } }
     },
-    select: { phone: true }
+    select: { biodata: { select: { phone: true } } }
   });
 
-  if (!admin) return sendResponse(res, 404, "Admin contact not found");
+  if (!admin || !admin.biodata) return sendResponse(res, 404, "Admin contact not found");
 
-  return sendResponse(res, 200, "fetch admin contact success", admin);
+  return sendResponse(res, 200, "fetch admin contact success", { phone: admin.biodata.phone });
 };

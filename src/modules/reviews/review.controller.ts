@@ -8,8 +8,8 @@ export const postReview = async (req: Request, res: Response) => {
 
   try {
     const review = await service.createReview({
-      orderId: Number(orderId),
-      productId: Number(productId),
+      orderId: orderId as string,
+      productId: productId as string,
       userId,
       rating: Number(rating),
       comment,
@@ -21,7 +21,7 @@ export const postReview = async (req: Request, res: Response) => {
 };
 
 export const getReviews = async (req: Request, res: Response) => {
-  const productId = Number(req.params.productId);
+  const productId = req.params.productId;
   try {
     const reviews = await service.getProductReviews(productId);
     return sendResponse(res, 200, "fetch reviews success", reviews);

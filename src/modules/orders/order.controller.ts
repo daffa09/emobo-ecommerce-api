@@ -24,10 +24,9 @@ export const createOrder = async (req: Request, res: Response) => {
 };
 
 export const getOrder = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  console.log("GET order called with ID:", id, "typeof:", typeof id);
+  const id = req.params.id;
   
-  if (isNaN(id)) {
+  if (!id) {
     return sendResponse(res, 400, "Invalid order ID");
   }
 
@@ -37,8 +36,7 @@ export const getOrder = async (req: Request, res: Response) => {
   const order = await service.getOrderWithItems(id);
   if (!order) return sendResponse(res, 404, "order not found");
 
-  // IDOR Protection: Check if user owns order or is Admin
-  if (role !== "ADMIN" && order.userId !== userId) {
+  if (role !== "ADMIN" && order.biodata?.userId !== userId) {
     return sendResponse(res, 403, "Forbidden: You do not have permission to view this order");
   }
 
@@ -71,19 +69,18 @@ export const listAllOrders = async (req: Request, res: Response) => {
 };
 
 export const updateOrderStatus = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id;
   const { status, trackingNo } = req.body;
   try {
     const order = await service.updateStatus(id, status, trackingNo);
     
-    // Notify customer about order status update
     try {
       const { createNotification } = require("../notifications/notification.controller");
       const notifMessage = trackingNo
         ? `Pesanan #${order.id} Anda telah dikirim! No Resi: ${trackingNo}`
         : `Status pesanan #${order.id} Anda telah diperbarui menjadi ${status}.`;
       await createNotification(
-        order.userId,
+        order.biodata.userId,
         "Order Status Updated",
         notifMessage,
         "ORDER"
@@ -99,14 +96,13 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 };
 
 export const confirmOrderReceived = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id;
   // @ts-ignore
   const { id: userId } = req.user;
 
   try {
     const order = await service.confirmOrderReceived(id, userId);
     
-    // Send a thank-you notification
     try {
       const { createNotification } = require("../notifications/notification.controller");
       await createNotification(
@@ -127,7 +123,7 @@ export const confirmOrderReceived = async (req: Request, res: Response) => {
 };
 
 export const cancelOrder = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id;
   // @ts-ignore
   const { id: userId, role } = req.user;
   

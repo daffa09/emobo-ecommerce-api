@@ -3,16 +3,21 @@ import prisma from "../../prisma";
 import { sendResponse } from "../../utils/response";
 
 export const listCustomers = async (_req: Request, res: Response) => {
-  const customers = await prisma.user.findMany({
-    where: { role: { name: "CUSTOMER" } },
-    select: { id: true, email: true, name: true, phone: true, address: true, role: true, createdAt: true },
+  const users = await prisma.user.findMany({
+    where: { role: "CUSTOMER" },
+    select: { id: true, email: true, role: true, createdAt: true, biodata: { select: { name: true, phone: true, address: true } } },
   });
+  const customers = users.map(u => ({ ...u, name: u.biodata?.name, phone: u.biodata?.phone, address: u.biodata?.address, biodata: undefined }));
   return sendResponse(res, 200, "fetch data success", customers);
 };
 
 export const getCustomer = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const customer = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true, name: true } });
+  const id = req.params.id;
+  const user = await prisma.user.findUnique({ 
+    where: { id }, 
+    select: { id: true, email: true, biodata: { select: { name: true } } } 
+  });
+  const customer = user ? { ...user, name: user.biodata?.name, biodata: undefined } : null;
   if (!customer) return sendResponse(res, 404, "customer not found");
   return sendResponse(res, 200, "fetch data success", customer);
 };

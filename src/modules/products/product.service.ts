@@ -94,14 +94,14 @@ export const createProduct = async (data: any) => {
   return prisma.product.create({ data });
 };
 
-export const updateProduct = async (id: number, data: any) => {
+export const updateProduct = async (id: string, data: any) => {
   if (data.price) {
     data.price = Math.round(data.price * (1 + PPN_RATE / 100));
   }
   return prisma.product.update({ where: { id }, data });
 };
 
-export const deleteProduct = async (id: number) => {
+export const deleteProduct = async (id: string) => {
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
@@ -125,7 +125,7 @@ export const deleteProduct = async (id: number) => {
   return prisma.product.delete({ where: { id } });
 };
 
-export const getProductById = async (id: number) => {
+export const getProductById = async (id: string) => {
   const p = await prisma.product.findUnique({ 
     where: { id },
     include: {

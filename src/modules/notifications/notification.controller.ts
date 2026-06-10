@@ -25,7 +25,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 
   try {
     const notification = await prisma.notification.update({
-      where: { id: Number(id), userId },
+      where: { id, userId },
       data: { isRead: true },
     });
 
@@ -58,7 +58,7 @@ export const deleteNotification = async (req: Request, res: Response) => {
 
   try {
     await prisma.notification.delete({
-      where: { id: Number(id), userId },
+      where: { id, userId },
     });
 
     return sendResponse(res, 200, "notification deleted");
@@ -70,7 +70,7 @@ export const deleteNotification = async (req: Request, res: Response) => {
 /**
  * Utility function to create a notification (Server-side use)
  */
-export const createNotification = async (userId: number, title: string, message: string, type: string) => {
+export const createNotification = async (userId: string, title: string, message: string, type: string) => {
   return await prisma.notification.create({
     data: {
       userId,
@@ -86,7 +86,7 @@ export const createNotification = async (userId: number, title: string, message:
  */
 export const notifyAdmins = async (title: string, message: string, type: string) => {
   const admins = await prisma.user.findMany({
-    where: { role: { name: "ADMIN" } },
+    where: { role: "ADMIN" },
     select: { id: true },
   });
 

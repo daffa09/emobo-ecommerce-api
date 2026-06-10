@@ -1,7 +1,7 @@
 import prisma from "../../prisma";
 
 export interface PurchaseOrderItemData {
-  productId: number;
+  productId: string;
   quantity: number;
 }
 
@@ -70,7 +70,7 @@ export const listPurchaseOrders = async () => {
   });
 };
 
-export const getPurchaseOrderById = async (id: number) => {
+export const getPurchaseOrderById = async (id: string) => {
   return prisma.purchaseOrder.findUnique({
     where: { id },
     include: {

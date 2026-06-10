@@ -8,48 +8,55 @@ generator client {
   binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
 }
 
-model UserRole {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  users User[]
-
-  @@map("user_role")
+enum Role {
+  CUSTOMER
+  ADMIN
 }
 
 model User {
-  id                   Int            @id @default(autoincrement())
-  email                String         @unique
+  id                   String    @id @default(uuid())
+  email                String    @unique
   passwordHash         String
-  name                 String?
-  phone                String?
-  image                String?
-  address              String?
-  addressNotes         String?
-  provinceId           String?
-  cityId               String?
-  latitude             Float?
-  longitude            Float?
-  roleId               Int            @default(2) // Default to 2 (CUSTOMER)
-  role                 UserRole       @relation(fields: [roleId], references: [id])
-  isEmailVerified      Boolean        @default(false)
-  verificationToken    String?        @unique
-  resetPasswordToken   String?        @unique
+  role                 Role      @default(CUSTOMER)
+  isEmailVerified      Boolean   @default(false)
+  verificationToken    String?   @unique
+  resetPasswordToken   String?   @unique
   resetPasswordExpires DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  orders               Order[]
-  refreshTokens        RefreshToken[]
-  reviews              Review[]
-  notifications        Notification[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  biodata       Biodata?
+  refreshTokens RefreshToken[]
+  notifications Notification[]
 
   @@map("users")
 }
 
+model Biodata {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  phone        String
+  image        String?
+  address      String?
+  addressNotes String?
+  provinceId   String?
+  cityId       String?
+  latitude     Float?
+  longitude    Float?
+
+  orders  Order[]
+  reviews Review[]
+
+  @@map("biodata")
+}
+
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   token     String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
   revoked   Boolean  @default(false)
   createdAt DateTime @default(now())
   expiresAt DateTime
@@ -58,21 +65,21 @@ model RefreshToken {
 }
 
 model Product {
-  id                 Int                 @id @default(autoincrement())
+  id                 String              @id @default(uuid())
   sku                String              @unique
   serialNumber       String?             @unique
   name               String
-  price              Int
-  buyPrice           Int                 @default(0)
+  price              Decimal
+  buyPrice           Decimal             @default(0)
   brand              String
   category           String              @default("General")
   description        String?
   stock              Int                 @default(0)
   images             String[]            @default([])
   specifications     Json                @default("{}")
-  condition          String              @default("NEW") // e.g. "NEW", "USED", "REFURBISHED"
-  warranty           String? // e.g. "1 Year Official"
-  weight             Int                 @default(1500) // weight in grams
+  condition          String              @default("NEW")
+  warranty           String?
+  weight             Int                 @default(1500)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   deletedAt          DateTime?
@@ -84,12 +91,12 @@ model Product {
 }
 
 model Order {
-  id                 Int         @id @default(autoincrement())
-  user               User        @relation(fields: [userId], references: [id])
-  userId             Int
-  totalAmount        Int
-  shippingCost       Int         @default(0)
-  shippingService    String? // e.g., "jne reg"
+  id                 String      @id @default(uuid())
+  biodata            Biodata     @relation(fields: [biodataId], references: [id])
+  biodataId          String
+  total_grand        Decimal
+  shippingCost       Decimal     @default(0)
+  shippingService    String?
   status             OrderStatus @default(PENDING)
   shippingAddr       Json
   phone              String
@@ -99,36 +106,37 @@ model Order {
   payment            Payment?
   reviews            Review[]
   trackingNo         String?
-  estimatedDays      Int? // ETD from RajaOngkir (e.g. 2 for "2 days")
-  shippedAt          DateTime? // When the order was marked SHIPPED
-  deliveryNotifiedAt DateTime? // When the "please confirm" notification was sent
-  taxAmount          Int         @default(0)
-  appFee             Int         @default(0)
+  estimatedDays      Int?
+  shippedAt          DateTime?
+  deliveryNotifiedAt DateTime?
+  taxAmount          Decimal     @default(0)
+  appFee             Decimal     @default(0)
 
   @@map("orders")
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
-  order     Order   @relation(fields: [orderId], references: [id])
-  orderId   Int
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-  quantity  Int
-  unitPrice Int
+  id          String  @id @default(uuid())
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  product     Product @relation(fields: [productId], references: [id])
+  productId   String
+  quantity    Int
+  unitPrice   Decimal
+  total_price Decimal
 
   @@map("order_item")
 }
 
 model Payment {
-  id          Int           @id @default(autoincrement())
-  order       Order         @relation(fields: [orderId], references: [id])
-  orderId     Int           @unique
-  provider    String // e.g., "midtrans"
-  providerId  String? // id returned by provider (order_id in midtrans)
-  snapToken   String? // Midtrans Snap Token
-  redirectUrl String? // Midtrans Redirect URL
-  amount      Int
+  id          String        @id @default(uuid())
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String        @unique
+  provider    String
+  providerId  String?
+  snapToken   String?
+  redirectUrl String?
+  amount      Decimal
   status      PaymentStatus @default(PENDING)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -138,21 +146,20 @@ model Payment {
 }
 
 model Review {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   order     Order    @relation(fields: [orderId], references: [id])
-  orderId   Int
+  orderId   String
   product   Product  @relation(fields: [productId], references: [id])
-  productId Int
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  rating    Int // 1-5
+  productId String
+  biodata   Biodata  @relation(fields: [biodataId], references: [id])
+  biodataId String
+  rating    Int
   comment   String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("reviews")
 }
-
-// enum Role removed since we use UserRole
 
 enum OrderStatus {
   PENDING
@@ -171,21 +178,20 @@ enum PaymentStatus {
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
-  type      String // e.g., "SYSTEM", "ORDER", "MESSAGE", "CUSTOMER"
+  type      String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@map("notifications")
 }
 
 model ContactMessage {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   firstName String
   lastName  String
   subject   String
@@ -197,7 +203,7 @@ model ContactMessage {
 }
 
 model PurchaseOrder {
-  id                  Int                 @id @default(autoincrement())
+  id                  String              @id @default(uuid())
   receiptUrl          String
   totalItemsOnReceipt Int
   notes               String?
@@ -209,11 +215,11 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id              Int           @id @default(autoincrement())
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  purchaseOrderId Int
+  id              String        @id @default(uuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
   product         Product       @relation(fields: [productId], references: [id])
-  productId       Int
+  productId       String
   quantity        Int
 
   @@map("purchase_order_item")

@@ -19,7 +19,7 @@ export const getPublicProducts = async (req: Request, res: Response) => {
 };
 
 export const getById = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id;
   const data = await service.getProductById(id);
   if (!data) return sendResponse(res, 404, "product not found");
   return sendResponse(res, 200, "fetch data success", data);
@@ -37,13 +37,13 @@ export const createProduct = async (req: Request, res: Response) => {
 };
 
 export const updateProduct = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id;
   const product = await service.updateProduct(id, req.body);
   return sendResponse(res, 200, "product updated", product);
 };
 
 export const deleteProduct = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+  const id = req.params.id;
   await service.deleteProduct(id);
   return sendResponse(res, 200, "product deleted");
 };

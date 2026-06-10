@@ -10,11 +10,11 @@ const flipBillsUrl = FLIP_IS_PRODUCTION
   ? "https://bigflip.id/api/v2/pwf/bill" 
   : "https://bigflip.id/big_sandbox_api/v2/pwf/bill";
 
-export const createFlipPayment = async (orderId: number) => {
+export const createFlipPayment = async (orderId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      user: true,
+      biodata: { include: { user: true } },
       items: {
         include: { product: true },
       },
@@ -38,13 +38,13 @@ export const createFlipPayment = async (orderId: number) => {
   const payload = new URLSearchParams({
     title: `Order No ${orderId}`,
     type: "SINGLE",
-    amount: order.totalAmount.toString(),
+    amount: order.total_grand.toString(),
     redirect_url: redirectUrl,
     is_address_required: "0",
     is_phone_number_required: "0",
     step: "2", 
-    sender_name: order.user.name || "Customer",
-    sender_email: order.user.email,
+    sender_name: order.biodata?.name || "Customer",
+    sender_email: order.biodata?.user.email || "",
     sender_phone_number: order.phone || "",
   });
 
@@ -69,7 +69,7 @@ export const createFlipPayment = async (orderId: number) => {
         providerId: bill.link_id.toString(), 
         snapToken: "",
         redirectUrl: bill.link_url,
-        amount: order.totalAmount,
+        amount: order.total_grand,
       },
       create: {
         orderId,
@@ -77,7 +77,7 @@ export const createFlipPayment = async (orderId: number) => {
         providerId: bill.link_id.toString(),
         snapToken: "",
         redirectUrl: bill.link_url,
-        amount: order.totalAmount,
+        amount: order.total_grand,
         status: "PENDING",
       },
     });
@@ -213,7 +213,7 @@ export const handleFlipCallback = async (data: any) => {
   return verifyPayment(payment.orderId);
 };
 
-export const verifyPayment = async (orderId: number) => {
+export const verifyPayment = async (orderId: string) => {
   console.log(`Verifying payment for order ${orderId}...`);
   const payment = await prisma.payment.findUnique({ where: { orderId } });
   if (!payment) throw new Error("Payment not found");

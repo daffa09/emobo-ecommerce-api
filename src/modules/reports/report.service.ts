@@ -10,7 +10,7 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
       },
     },
     include: {
-      user: true,
+      biodata: true,
       items: {
         include: { product: true },
       },
@@ -19,12 +19,12 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
   });
 
   const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
-  const totalSales = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalSales = orders.reduce((sum, o) => sum + Number(o.total_grand), 0);
   
   const totalProfit = Math.round(orders.reduce((sum, o) => {
     return sum + o.items.reduce((itemSum, item) => {
-      const netSellingPrice = item.unitPrice / (1 + PPN_RATE / 100);
-      const itemProfit = (netSellingPrice - (item.product.buyPrice || 0)) * item.quantity;
+      const netSellingPrice = Number(item.unitPrice) / (1 + PPN_RATE / 100);
+      const itemProfit = (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.quantity;
       return itemSum + itemProfit;
     }, 0);
   }, 0));
@@ -33,17 +33,17 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
     orders: orders.map((o) => ({
       id: o.id,
       date: o.createdAt,
-      customer: o.user.name || "Customer",
-      totalAmount: o.totalAmount,
+      customer: o.biodata?.name || "Customer",
+      totalAmount: Number(o.total_grand),
       profit: Math.round(o.items.reduce((sum, item) => {
-        const netSellingPrice = item.unitPrice / (1 + PPN_RATE / 100);
-        return sum + (netSellingPrice - (item.product.buyPrice || 0)) * item.quantity;
+        const netSellingPrice = Number(item.unitPrice) / (1 + PPN_RATE / 100);
+        return sum + (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.quantity;
       }, 0)),
       items: o.items.map((item) => ({
         productName: item.product.name,
         quantity: item.quantity,
-        price: item.unitPrice,
-        buyPrice: item.product.buyPrice,
+        price: Number(item.unitPrice),
+        buyPrice: Number(item.product.buyPrice),
       })),
     })),
     totalSales,

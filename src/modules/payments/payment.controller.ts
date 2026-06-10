@@ -4,7 +4,7 @@ import * as service from "./payment.service";
 import prisma from "../../prisma";
 
 export const createPayment = async (req: Request, res: Response) => {
-  const orderId = Number(req.params.orderId);
+  const orderId = req.params.orderId;
   try {
     const payment = await service.createFlipPayment(orderId);
     return sendResponse(res, 201, "payment created", payment);
@@ -26,14 +26,14 @@ export const webhook = async (req: Request, res: Response) => {
 };
 
 export const getPaymentStatus = async (req: Request, res: Response) => {
-  const orderId = Number(req.params.orderId);
+  const orderId = req.params.orderId;
   const payment = await prisma.payment.findUnique({ where: { orderId }});
   if (!payment) return sendResponse(res, 404, "payment not found");
   return sendResponse(res, 200, "fetch data success", payment);
 };
 
 export const verifyPayment = async (req: Request, res: Response) => {
-  const orderId = Number(req.params.orderId);
+  const orderId = req.params.orderId;
   try {
     const payment = await service.verifyPayment(orderId);
     return sendResponse(res, 200, "payment verified", payment);
