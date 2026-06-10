@@ -15,7 +15,6 @@ export const registerUser = async (email: string, password: string, name?: strin
       email, 
       passwordHash: hash, 
       name, 
-      role: "CUSTOMER",
       isEmailVerified: false,
       verificationToken
     },
@@ -44,7 +43,10 @@ export const registerUser = async (email: string, password: string, name?: strin
 };
 
 export const findUserByEmail = async (email: string) => {
-  return prisma.user.findUnique({ where: { email } });
+  return prisma.user.findUnique({ 
+    where: { email },
+    include: { role: true }
+  });
 };
 
 export const verifyEmailService = async (token: string) => {
@@ -63,7 +65,7 @@ export const verifyEmailService = async (token: string) => {
 };
 
 export const createSessionTokens = async (user: any) => {
-  const payload = { id: user.id, email: user.email, role: user.role };
+  const payload = { id: user.id, email: user.email, role: user.role?.name || "CUSTOMER" };
   const access_token = generateAccessToken(payload);
   const refresh_token = generateRefreshToken(payload);
 
@@ -93,7 +95,10 @@ export const rotateRefreshToken = async (oldToken: string) => {
     await prisma.refreshToken.update({ where: { token: oldToken }, data: { revoked: true } });
 
     // create new refresh token
-    const user = await prisma.user.findUnique({ where: { id: dbToken.userId } });
+    const user = await prisma.user.findUnique({ 
+      where: { id: dbToken.userId },
+      include: { role: true }
+    });
     if (!user) throw new Error("User not found");
 
     const { access_token, refresh_token } = await createSessionTokens(user);

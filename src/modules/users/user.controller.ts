@@ -70,7 +70,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const getAdminContact = async (_req: Request, res: Response) => {
   const admin = await prisma.user.findFirst({
     where: { 
-      role: "ADMIN",
+      role: { name: "ADMIN" },
       phone: { not: null }
     },
     select: { phone: true }

@@ -40,7 +40,7 @@ export const login = async (req: Request, res: Response) => {
     user: {
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role?.name || "CUSTOMER"
     }
   });
 };

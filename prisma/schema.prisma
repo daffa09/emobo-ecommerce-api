@@ -8,88 +8,104 @@ generator client {
   binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
 }
 
+model UserRole {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+
+  @@map("user_role")
+}
 
 model User {
-  id                Int       @id @default(autoincrement())
-  email             String    @unique
-  passwordHash      String
-  name              String?
-  phone             String?
-  image             String?
-  address           String?
-  addressNotes      String?
-  provinceId        String?
-  cityId            String?
-  latitude          Float?
-  longitude         Float? 
-  role              Role      @default(CUSTOMER)
-  isEmailVerified   Boolean   @default(false)
-  verificationToken String?   @unique
-  resetPasswordToken  String?   @unique
+  id                   Int            @id @default(autoincrement())
+  email                String         @unique
+  passwordHash         String
+  name                 String?
+  phone                String?
+  image                String?
+  address              String?
+  addressNotes         String?
+  provinceId           String?
+  cityId               String?
+  latitude             Float?
+  longitude            Float?
+  roleId               Int            @default(2) // Default to 2 (CUSTOMER)
+  role                 UserRole       @relation(fields: [roleId], references: [id])
+  isEmailVerified      Boolean        @default(false)
+  verificationToken    String?        @unique
+  resetPasswordToken   String?        @unique
   resetPasswordExpires DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  orders            Order[]
-  refreshTokens     RefreshToken[]
-  reviews           Review[]
-  notifications     Notification[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  orders               Order[]
+  refreshTokens        RefreshToken[]
+  reviews              Review[]
+  notifications        Notification[]
+
+  @@map("users")
 }
 
 model RefreshToken {
-  id         Int      @id @default(autoincrement())
-  token      String   @unique
-  user       User     @relation(fields: [userId], references: [id])
-  userId     Int
-  revoked    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@map("refresh_tokens")
 }
 
 model Product {
-  id             Int       @id @default(autoincrement())
-  sku            String    @unique
-  serialNumber   String?   @unique
-  name           String
-  price          Int
-  buyPrice       Int       @default(0)
-  brand          String
-  category       String    @default("General")
-  description    String?
-  stock          Int       @default(0)
-  images         String[]  @default([])
-  specifications Json      @default("{}")
-  condition      String    @default("NEW") // e.g. "NEW", "USED", "REFURBISHED"
-  warranty       String?   // e.g. "1 Year Official"
-  weight         Int       @default(1500) // weight in grams
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  deletedAt      DateTime?
-  orderItems     OrderItem[]
-  reviews        Review[]
+  id                 Int                 @id @default(autoincrement())
+  sku                String              @unique
+  serialNumber       String?             @unique
+  name               String
+  price              Int
+  buyPrice           Int                 @default(0)
+  brand              String
+  category           String              @default("General")
+  description        String?
+  stock              Int                 @default(0)
+  images             String[]            @default([])
+  specifications     Json                @default("{}")
+  condition          String              @default("NEW") // e.g. "NEW", "USED", "REFURBISHED"
+  warranty           String? // e.g. "1 Year Official"
+  weight             Int                 @default(1500) // weight in grams
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  orderItems         OrderItem[]
+  reviews            Review[]
   purchaseOrderItems PurchaseOrderItem[]
+
+  @@map("products")
 }
 
 model Order {
-  id               Int         @id @default(autoincrement())
-  user             User        @relation(fields: [userId], references: [id])
-  userId           Int
-  totalAmount      Int
-  shippingCost     Int         @default(0)
-  shippingService  String?     // e.g., "jne reg"
-  status           OrderStatus @default(PENDING)
-  shippingAddr     Json
-  phone            String
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  items            OrderItem[]
-  payment          Payment?
-  reviews          Review[]
-  trackingNo       String?
-  estimatedDays    Int?        // ETD from RajaOngkir (e.g. 2 for "2 days")
-  shippedAt        DateTime?   // When the order was marked SHIPPED
+  id                 Int         @id @default(autoincrement())
+  user               User        @relation(fields: [userId], references: [id])
+  userId             Int
+  totalAmount        Int
+  shippingCost       Int         @default(0)
+  shippingService    String? // e.g., "jne reg"
+  status             OrderStatus @default(PENDING)
+  shippingAddr       Json
+  phone              String
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  items              OrderItem[]
+  payment            Payment?
+  reviews            Review[]
+  trackingNo         String?
+  estimatedDays      Int? // ETD from RajaOngkir (e.g. 2 for "2 days")
+  shippedAt          DateTime? // When the order was marked SHIPPED
   deliveryNotifiedAt DateTime? // When the "please confirm" notification was sent
-  taxAmount        Int         @default(0)
-  appFee           Int         @default(0)
+  taxAmount          Int         @default(0)
+  appFee             Int         @default(0)
+
+  @@map("orders")
 }
 
 model OrderItem {
@@ -100,21 +116,25 @@ model OrderItem {
   productId Int
   quantity  Int
   unitPrice Int
+
+  @@map("order_item")
 }
 
 model Payment {
-  id           Int         @id @default(autoincrement())
-  order        Order       @relation(fields: [orderId], references: [id])
-  orderId      Int         @unique
-  provider     String      // e.g., "midtrans"
-  providerId   String?     // id returned by provider (order_id in midtrans)
-  snapToken    String?     // Midtrans Snap Token
-  redirectUrl  String?     // Midtrans Redirect URL
-  amount       Int
-  status       PaymentStatus @default(PENDING)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  paidAt       DateTime?
+  id          Int           @id @default(autoincrement())
+  order       Order         @relation(fields: [orderId], references: [id])
+  orderId     Int           @unique
+  provider    String // e.g., "midtrans"
+  providerId  String? // id returned by provider (order_id in midtrans)
+  snapToken   String? // Midtrans Snap Token
+  redirectUrl String? // Midtrans Redirect URL
+  amount      Int
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  paidAt      DateTime?
+
+  @@map("payments")
 }
 
 model Review {
@@ -125,15 +145,14 @@ model Review {
   productId Int
   user      User     @relation(fields: [userId], references: [id])
   userId    Int
-  rating    Int      // 1-5
+  rating    Int // 1-5
   comment   String?
   createdAt DateTime @default(now())
+
+  @@map("reviews")
 }
 
-enum Role {
-  ADMIN
-  CUSTOMER
-}
+// enum Role removed since we use UserRole
 
 enum OrderStatus {
   PENDING
@@ -157,10 +176,12 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   title     String
   message   String
-  type      String   // e.g., "SYSTEM", "ORDER", "MESSAGE", "CUSTOMER"
+  type      String // e.g., "SYSTEM", "ORDER", "MESSAGE", "CUSTOMER"
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("notifications")
 }
 
 model ContactMessage {
@@ -171,6 +192,8 @@ model ContactMessage {
   phone     String
   message   String
   createdAt DateTime @default(now())
+
+  @@map("contact_messages")
 }
 
 model PurchaseOrder {
@@ -181,6 +204,8 @@ model PurchaseOrder {
   items               PurchaseOrderItem[]
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
+
+  @@map("purchase_orders")
 }
 
 model PurchaseOrderItem {
@@ -190,4 +215,6 @@ model PurchaseOrderItem {
   product         Product       @relation(fields: [productId], references: [id])
   productId       Int
   quantity        Int
+
+  @@map("purchase_order_item")
 }

@@ -4,7 +4,7 @@ import { sendResponse } from "../../utils/response";
 
 export const listCustomers = async (_req: Request, res: Response) => {
   const customers = await prisma.user.findMany({
-    where: { role: "CUSTOMER" },
+    where: { role: { name: "CUSTOMER" } },
     select: { id: true, email: true, name: true, phone: true, address: true, role: true, createdAt: true },
   });
   return sendResponse(res, 200, "fetch data success", customers);

@@ -86,7 +86,7 @@ export const createNotification = async (userId: number, title: string, message:
  */
 export const notifyAdmins = async (title: string, message: string, type: string) => {
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { role: { name: "ADMIN" } },
     select: { id: true },
   });
 
