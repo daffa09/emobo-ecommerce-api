@@ -36,7 +36,7 @@ export const getOrder = async (req: Request, res: Response) => {
   const order = await service.getOrderWithItems(id);
   if (!order) return sendResponse(res, 404, "order not found");
 
-  if (role !== "ADMIN" && order.profile?.userId !== userId) {
+  if (role !== "ADMIN" && order.profile?.user?.id !== userId) {
     return sendResponse(res, 403, "Forbidden: You do not have permission to view this order");
   }
 
@@ -80,7 +80,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
         ? `Pesanan #${order.id} Anda telah dikirim! No Resi: ${trackingNo}`
         : `Status pesanan #${order.id} Anda telah diperbarui menjadi ${status}.`;
       await createNotification(
-        order.profile.userId,
+        order.profile.user?.id,
         "Order Status Updated",
         notifMessage,
         "ORDER"
@@ -135,3 +135,4 @@ export const cancelOrder = async (req: Request, res: Response) => {
     return sendResponse(res, statusCode, err.message);
   }
 };
+

@@ -6,5 +6,6 @@ import { adminOnly } from "../../middleware/role.middleware";
 const router = Router();
 
 router.get("/sales", authMiddleware, adminOnly, controller.getSalesReport);
+router.get("/incoming", authMiddleware, adminOnly, controller.getIncomingGoodsReport);
 
 export default router;

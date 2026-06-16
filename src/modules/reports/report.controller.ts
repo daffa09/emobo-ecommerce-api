@@ -13,3 +13,16 @@ export const getSalesReport = async (req: Request, res: Response) => {
     res.status(400).send(err.message);
   }
 };
+
+export const getIncomingGoodsReport = async (req: Request, res: Response) => {
+  const { start, end } = req.query;
+  const startDate = start ? new Date(start as string) : undefined;
+  const endDate = end ? new Date(end as string) : undefined;
+
+  try {
+    const data = await service.generateIncomingGoodsReport(startDate, endDate);
+    res.json(data);
+  } catch (err: any) {
+    res.status(400).send(err.message);
+  }
+};

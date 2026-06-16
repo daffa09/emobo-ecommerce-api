@@ -1,56 +1,66 @@
 import prisma from "../../prisma";
 
 export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
-  const orders = await prisma.order.findMany({
+  const reports = await prisma.salesReportView.findMany({
     where: {
-      status: "COMPLETED",
-      createdAt: {
+      orderDate: {
         gte: startDate,
         lte: endDate,
       },
     },
-    include: {
-      profile: true,
-      items: {
-        include: { product: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
+    orderBy: { orderDate: "desc" },
   });
 
-  const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
-  const totalSales = orders.reduce((sum, o) => sum + Number(o.total_grand), 0);
-  
-  const totalProfit = Math.round(orders.reduce((sum, o) => {
-    return sum + o.items.reduce((itemSum, item) => {
-      const netSellingPrice = Number(item.unitPrice) / (1 + PPN_RATE / 100);
-      const itemProfit = (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.qty;
-      return itemSum + itemProfit;
-    }, 0);
-  }, 0));
+  const totalSales = reports.reduce((sum, r) => sum + Number(r.totalAmount), 0);
+  const totalProfit = reports.reduce((sum, r) => sum + Number(r.totalProfit), 0);
 
   return {
-    orders: orders.map((o) => ({
-      id: o.id,
-      date: o.createdAt,
-      customer: o.profile?.name || "Customer",
-      totalAmount: Number(o.total_grand),
-      profit: Math.round(o.items.reduce((sum, item) => {
-        const netSellingPrice = Number(item.unitPrice) / (1 + PPN_RATE / 100);
-        return sum + (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.qty;
-      }, 0)),
-      items: o.items.map((item) => ({
-        productName: item.product.name,
-        quantity: item.qty,
-        price: Number(item.unitPrice),
-        buyPrice: Number(item.product.buyPrice),
-      })),
+    orders: reports.map((r) => ({
+      id: r.orderId,
+      date: r.orderDate,
+      customer: r.customerName || "Customer",
+      totalAmount: Number(r.totalAmount),
+      profit: Math.round(Number(r.totalProfit)),
+      items: [], // Details dihilangkan agar report query menjadi lebih cepat menggunakan View
     })),
     totalSales,
-    totalProfit,
+    totalProfit: Math.round(totalProfit),
     period: {
       startDate: startDate || null,
       endDate: endDate || null,
     },
   };
 };
+
+export const generateIncomingGoodsReport = async (startDate?: Date, endDate?: Date) => {
+  const reports = await prisma.incomingGoodsReportView.findMany({
+    where: {
+      poDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    orderBy: { poDate: 'desc' },
+  });
+
+  const totalQuantity = reports.reduce((sum, r) => sum + r.totalQuantity, 0);
+  const totalCost = reports.reduce((sum, r) => sum + Number(r.totalCost), 0);
+
+  return {
+    purchases: reports.map((r) => ({
+      id: r.poId,
+      date: r.poDate,
+      receiptUrl: r.receiptUrl,
+      notes: r.notes || '',
+      totalQuantity: r.totalQuantity,
+      totalCost: Number(r.totalCost),
+    })),
+    totalQuantity,
+    totalCost: Math.round(totalCost),
+    period: {
+      startDate: startDate || null,
+      endDate: endDate || null,
+    },
+  };
+};
+

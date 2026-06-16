@@ -28,22 +28,10 @@ DROP TABLE IF EXISTS "order_item" CASCADE;
 DROP TABLE IF EXISTS "orders" CASCADE;
 DROP TABLE IF EXISTS "products" CASCADE;
 DROP TABLE IF EXISTS "refresh_tokens" CASCADE;
-DROP TABLE IF EXISTS "profiles" CASCADE;
 DROP TABLE IF EXISTS "users" CASCADE;
+DROP TABLE IF EXISTS "profiles" CASCADE;
 
 -- Create tables
-CREATE TABLE "users" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "email" VARCHAR(50) NOT NULL UNIQUE,
-    "password_hash" VARCHAR(255) NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
-    "is_email_verified" BOOLEAN NOT NULL DEFAULT false,
-    "verification_token" VARCHAR(255) UNIQUE,
-    "reset_password_token" VARCHAR(255) UNIQUE,
-    "reset_password_expires" TIMESTAMP,
-    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP NOT NULL
-);
 
 CREATE TABLE "profiles" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,9 +43,22 @@ CREATE TABLE "profiles" (
     "province_id" UUID,
     "city_id" UUID,
     "latitude" DOUBLE PRECISION,
-    "longitude" DOUBLE PRECISION,
-    "user_id" UUID NOT NULL UNIQUE,
-    CONSTRAINT "profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "longitude" DOUBLE PRECISION
+);
+
+CREATE TABLE "users" (
+    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "email" VARCHAR(50) NOT NULL UNIQUE,
+    "password_hash" VARCHAR(255) NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
+    "is_email_verified" BOOLEAN NOT NULL DEFAULT false,
+    "verification_token" VARCHAR(255) UNIQUE,
+    "reset_password_token" VARCHAR(255) UNIQUE,
+    "reset_password_expires" TIMESTAMP,
+    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP NOT NULL,
+    "profile_id" UUID UNIQUE,
+    CONSTRAINT "users_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 CREATE TABLE "refresh_tokens" (
@@ -189,3 +190,35 @@ CREATE TABLE "purchase_order_item" (
     CONSTRAINT "purchase_order_item_purchase_order_id_fkey" FOREIGN KEY ("purchase_order_id") REFERENCES "purchase_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "purchase_order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- Views
+CREATE OR REPLACE VIEW sales_reports_view AS
+SELECT
+    o.id AS order_id,
+    o.created_at AS order_date,
+    p.name AS customer_name,
+    o.total_grand AS total_amount,
+    COALESCE(SUM(
+        (oi.unit_price / 1.11 - COALESCE(prod.buy_price, 0)) * oi.qty
+    ), 0) AS total_profit
+FROM orders o
+LEFT JOIN profiles p ON o.profile_id = p.id
+LEFT JOIN order_item oi ON o.id = oi.order_id
+LEFT JOIN products prod ON oi.product_id = prod.id
+WHERE o.status = 'COMPLETED'
+GROUP BY o.id, o.created_at, p.name, o.total_grand;
+
+
+CREATE OR REPLACE VIEW incoming_goods_reports_view AS
+SELECT 
+    po.id AS po_id,
+    po.created_at AS po_date,
+    po.receipt_url,
+    po.notes,
+    COALESCE(SUM(poi.quantity), 0) AS total_quantity,
+    COALESCE(SUM(poi.quantity * COALESCE(prod.buy_price, 0)), 0) AS total_cost
+FROM purchase_orders po
+LEFT JOIN purchase_order_item poi ON po.id = poi.purchase_order_id
+LEFT JOIN products prod ON poi.product_id = prod.id
+GROUP BY po.id, po.created_at, po.receipt_url, po.notes;
+

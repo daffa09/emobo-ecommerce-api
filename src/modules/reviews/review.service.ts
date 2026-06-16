@@ -9,10 +9,10 @@ export const createReview = async (data: {
 }) => {
   const order = await prisma.order.findUnique({
     where: { id: data.orderId },
-    include: { profile: true }
+    include: { profile: { include: { user: true } } }
   });
 
-  if (!order || order.profile.userId !== data.userId) {
+  if (!order || (order.profile?.user?.id || "") !== data.userId) {
     throw new Error("Invalid order or user");
   }
 
@@ -44,3 +44,5 @@ export const getProductReviews = async (productId: string) => {
     orderBy: { createdAt: "desc" },
   });
 };
+
+

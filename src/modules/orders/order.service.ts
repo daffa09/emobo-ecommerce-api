@@ -9,9 +9,9 @@ export const createOrder = async (
   shippingService?: string,
   estimatedDays?: number
 ) => {
-  const profile = await prisma.profile.findUnique({ where: { userId } });
-  if (!profile) throw new Error("profile not found for user");
-  const profileId = profile.id;
+  const profile = await prisma.user.findUnique({ where: { id: userId } });
+  if (!profile) throw new Error("User not found");
+  if (!profile.profileId) throw new Error("No profile"); const profileId = profile.profileId;
 
   const productIds = items.map((i) => i.productId);
   const products = await prisma.product.findMany({ 
@@ -87,16 +87,16 @@ export const getOrderWithItems = async (id: string) => {
       items: { include: { product: true } },
       payment: true,
       reviews: true,
-      profile: { select: { userId: true } }
+      profile: { include: { user: { select: { id: true } } } }
     },
   });
 };
 
 export const listOrdersByUser = async (userId: string, params?: { search?: string; limit?: number; offset?: number }) => {
-  const profile = await prisma.profile.findUnique({ where: { userId } });
-  if (!profile) return { orders: [], total: 0 };
+  const profile = await prisma.user.findUnique({ where: { id: userId } });
+  if (!profile || !profile.profileId) return { orders: [], total: 0 };
 
-  const where: any = { profileId: profile.id };
+  const where: any = { profileId: profile.profileId };
 
   if (params?.search) {
     where.items = {
@@ -146,14 +146,14 @@ export const updateStatus = async (id: string, status: any, trackingNo?: string)
   return prisma.order.update({
     where: { id },
     data,
-    include: { profile: true }
+    include: { profile: { include: { user: true } } }
   });
 };
 
 export const confirmOrderReceived = async (orderId: string, userId: string) => {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { profile: true } });
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { profile: { include: { user: true } } } });
   if (!order) throw new Error("Order not found");
-  if (order.profile.userId !== userId) throw new Error("Unauthorized");
+  if ((order.profile?.user?.id || "") !== userId) throw new Error("Unauthorized");
   if (order.status !== "SHIPPED") throw new Error("Order is not in SHIPPED status");
 
   return prisma.order.update({
@@ -166,12 +166,12 @@ export const cancelOrder = async (orderId: string, userId: string, isAdmin: bool
   return await prisma.$transaction(async (tx: any) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      include: { items: true, profile: true }
+      include: { items: true, profile: { include: { user: true } } }
     });
 
     if (!order) throw new Error("Order not found");
     
-    if (!isAdmin && order.profile.userId !== userId) {
+    if (!isAdmin && (order.profile?.user?.id || "") !== userId) {
       throw new Error("Unauthorized to cancel this order");
     }
 
@@ -212,7 +212,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
       estimatedDays: { not: null },
       deliveryNotifiedAt: null,
     },
-    include: { profile: true }
+    include: { profile: { include: { user: true } } }
   });
 
   for (const order of ordersToNotify) {
@@ -222,7 +222,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
 
     if (now >= estimatedDelivery) {
       await createNotificationFn(
-        order.profile.userId,
+        (order.profile?.user?.id || ""),
         "Konfirmasi Penerimaan Pesanan",
         `Pesanan #${order.id} Anda diperkirakan sudah tiba! Silakan konfirmasi penerimaan pesanan sebelum 3 hari ke depan. Jika tidak dikonfirmasi, sistem akan otomatis menyelesaikan pesanan Anda.`,
         "ORDER"
@@ -240,7 +240,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
       status: "SHIPPED",
       deliveryNotifiedAt: { not: null },
     },
-    include: { profile: true }
+    include: { profile: { include: { user: true } } }
   });
 
   for (const order of ordersToAutoComplete) {
@@ -253,7 +253,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
         data: { status: "COMPLETED" },
       });
       await createNotificationFn(
-        order.profile.userId,
+        (order.profile?.user?.id || ""),
         "Pesanan Diselesaikan Otomatis",
         `Pesanan #${order.id} Anda telah diselesaikan secara otomatis karena tidak ada konfirmasi penerimaan dalam 3 hari.`,
         "ORDER"
@@ -261,3 +261,5 @@ export const processDeliveryNotificationsAndAutoComplete = async (
     }
   }
 };
+
+

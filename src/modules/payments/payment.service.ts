@@ -44,7 +44,7 @@ export const createFlipPayment = async (orderId: string) => {
     is_phone_number_required: "0",
     step: "2", 
     sender_name: order.profile?.name || "Customer",
-    sender_email: order.profile?.user.email || "",
+    sender_email: order.profile?.user?.email || "",
     sender_phone_number: order.phone || "",
   });
 
@@ -274,3 +274,6 @@ export const verifyPayment = async (orderId: string) => {
     return payment;
   }
 };
+
+
+
