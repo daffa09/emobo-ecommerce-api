@@ -151,11 +151,11 @@ export const getTopSellingProducts = async (limit: number = 5) => {
   const result = await prisma.orderItem.groupBy({
     by: ["productId"],
     _sum: {
-      quantity: true,
+      qty: true,
     },
     orderBy: {
       _sum: {
-        quantity: "desc",
+        qty: "desc",
       },
     },
     take: limit,
@@ -182,7 +182,7 @@ export const getTopSellingProducts = async (limit: number = 5) => {
       ...rest,
       rating: Number(averageRating),
       reviewsCount: p._count.reviews,
-      totalSold: r._sum.quantity,
+      totalSold: r._sum.qty,
     };
   });
 };

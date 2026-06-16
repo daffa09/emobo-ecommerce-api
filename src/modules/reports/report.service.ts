@@ -10,7 +10,7 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
       },
     },
     include: {
-      biodata: true,
+      profile: true,
       items: {
         include: { product: true },
       },
@@ -24,7 +24,7 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
   const totalProfit = Math.round(orders.reduce((sum, o) => {
     return sum + o.items.reduce((itemSum, item) => {
       const netSellingPrice = Number(item.unitPrice) / (1 + PPN_RATE / 100);
-      const itemProfit = (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.quantity;
+      const itemProfit = (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.qty;
       return itemSum + itemProfit;
     }, 0);
   }, 0));
@@ -33,15 +33,15 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
     orders: orders.map((o) => ({
       id: o.id,
       date: o.createdAt,
-      customer: o.biodata?.name || "Customer",
+      customer: o.profile?.name || "Customer",
       totalAmount: Number(o.total_grand),
       profit: Math.round(o.items.reduce((sum, item) => {
         const netSellingPrice = Number(item.unitPrice) / (1 + PPN_RATE / 100);
-        return sum + (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.quantity;
+        return sum + (netSellingPrice - (Number(item.product.buyPrice) || 0)) * item.qty;
       }, 0)),
       items: o.items.map((item) => ({
         productName: item.product.name,
-        quantity: item.quantity,
+        quantity: item.qty,
         price: Number(item.unitPrice),
         buyPrice: Number(item.product.buyPrice),
       })),

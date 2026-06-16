@@ -14,7 +14,7 @@ export const getProfile = async (req: Request, res: Response) => {
       role: true,
       isEmailVerified: true,
       createdAt: true,
-      biodata: {
+      profile: {
         select: {
           name: true,
           phone: true,
@@ -38,15 +38,15 @@ export const getProfile = async (req: Request, res: Response) => {
     role: user.role,
     isEmailVerified: user.isEmailVerified,
     createdAt: user.createdAt,
-    name: user.biodata?.name,
-    phone: user.biodata?.phone,
-    image: user.biodata?.image,
-    address: user.biodata?.address,
-    addressNotes: user.biodata?.addressNotes,
-    provinceId: user.biodata?.provinceId,
-    cityId: user.biodata?.cityId,
-    latitude: user.biodata?.latitude,
-    longitude: user.biodata?.longitude,
+    name: user.profile?.name,
+    phone: user.profile?.phone,
+    image: user.profile?.image,
+    address: user.profile?.address,
+    addressNotes: user.profile?.addressNotes,
+    provinceId: user.profile?.provinceId,
+    cityId: user.profile?.cityId,
+    latitude: user.profile?.latitude,
+    longitude: user.profile?.longitude,
   };
 
   return sendResponse(res, 200, "fetch profile success", flatUser);
@@ -61,7 +61,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { 
-        biodata: {
+        profile: {
           upsert: {
             create: {
               name: name || "User",
@@ -83,7 +83,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         email: true,
         role: true,
         createdAt: true,
-        biodata: true
+        profile: true
       },
     });
 
@@ -92,15 +92,15 @@ export const updateProfile = async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
       createdAt: user.createdAt,
-      name: user.biodata?.name,
-      phone: user.biodata?.phone,
-      image: user.biodata?.image,
-      address: user.biodata?.address,
-      addressNotes: user.biodata?.addressNotes,
-      provinceId: user.biodata?.provinceId,
-      cityId: user.biodata?.cityId,
-      latitude: user.biodata?.latitude,
-      longitude: user.biodata?.longitude,
+      name: user.profile?.name,
+      phone: user.profile?.phone,
+      image: user.profile?.image,
+      address: user.profile?.address,
+      addressNotes: user.profile?.addressNotes,
+      provinceId: user.profile?.provinceId,
+      cityId: user.profile?.cityId,
+      latitude: user.profile?.latitude,
+      longitude: user.profile?.longitude,
     };
 
     return sendResponse(res, 200, "profile updated", flatUser);
@@ -113,12 +113,12 @@ export const getAdminContact = async (_req: Request, res: Response) => {
   const admin = await prisma.user.findFirst({
     where: { 
       role: "ADMIN",
-      biodata: { phone: { not: "" } }
+      profile: { phone: { not: "" } }
     },
-    select: { biodata: { select: { phone: true } } }
+    select: { profile: { select: { phone: true } } }
   });
 
-  if (!admin || !admin.biodata) return sendResponse(res, 404, "Admin contact not found");
+  if (!admin || !admin.profile) return sendResponse(res, 404, "Admin contact not found");
 
-  return sendResponse(res, 200, "fetch admin contact success", { phone: admin.biodata.phone });
+  return sendResponse(res, 200, "fetch admin contact success", { phone: admin.profile.phone });
 };

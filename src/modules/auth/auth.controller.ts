@@ -41,7 +41,7 @@ export const login = async (req: Request, res: Response) => {
       id: user.id,
       email: user.email,
       role: user.role || "CUSTOMER",
-      name: user.biodata?.name
+      name: user.profile?.name
     }
   });
 };

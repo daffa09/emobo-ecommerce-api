@@ -14,7 +14,7 @@ export const createFlipPayment = async (orderId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      biodata: { include: { user: true } },
+      profile: { include: { user: true } },
       items: {
         include: { product: true },
       },
@@ -43,8 +43,8 @@ export const createFlipPayment = async (orderId: string) => {
     is_address_required: "0",
     is_phone_number_required: "0",
     step: "2", 
-    sender_name: order.biodata?.name || "Customer",
-    sender_email: order.biodata?.user.email || "",
+    sender_name: order.profile?.name || "Customer",
+    sender_email: order.profile?.user.email || "",
     sender_phone_number: order.phone || "",
   });
 

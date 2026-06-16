@@ -2,16 +2,16 @@ import prisma from "../../prisma";
 
 export const createOrder = async (
   userId: string,
-  items: { productId: string; quantity: number }[],
+  items: { productId: string; qty: number }[],
   shippingAddr: any,
   phone: string,
   shippingCost: number = 0,
   shippingService?: string,
   estimatedDays?: number
 ) => {
-  const biodata = await prisma.biodata.findUnique({ where: { userId } });
-  if (!biodata) throw new Error("Biodata not found for user");
-  const biodataId = biodata.id;
+  const profile = await prisma.profile.findUnique({ where: { userId } });
+  if (!profile) throw new Error("profile not found for user");
+  const profileId = profile.id;
 
   const productIds = items.map((i) => i.productId);
   const products = await prisma.product.findMany({ 
@@ -25,12 +25,12 @@ export const createOrder = async (
   const orderItemsData = items.map((i) => {
     const p = products.find((pp: any) => pp.id === i.productId);
     if (!p) throw new Error(`Product ${i.productId} not found`);
-    if (p.stock < i.quantity) throw new Error(`Insufficient stock for product ${p.name}`);
+    if (p.stock < i.qty) throw new Error(`Insufficient stock for product ${p.name}`);
     const priceNum = Number(p.price);
-    lineTotal += priceNum * i.quantity;
+    lineTotal += priceNum * i.qty;
     return {
       productId: i.productId,
-      quantity: i.quantity,
+      qty: i.qty,
       unitPrice: priceNum,
     };
   });
@@ -45,7 +45,7 @@ export const createOrder = async (
   const order = await prisma.$transaction(async (tx: any) => {
     const o = await tx.order.create({
       data: {
-        biodataId,
+        profileId,
         total_grand: totalAmount,
         shippingCost,
         shippingService,
@@ -63,14 +63,14 @@ export const createOrder = async (
         data: {
           orderId: o.id,
           productId: oi.productId,
-          quantity: oi.quantity,
+          qty: oi.qty,
           unitPrice: oi.unitPrice,
-          total_price: oi.unitPrice * oi.quantity,
+          total_price: oi.unitPrice * oi.qty,
         },
       });
       await tx.product.update({
         where: { id: oi.productId },
-        data: { stock: { decrement: oi.quantity } },
+        data: { stock: { decrement: oi.qty } },
       });
     }
 
@@ -87,16 +87,16 @@ export const getOrderWithItems = async (id: string) => {
       items: { include: { product: true } },
       payment: true,
       reviews: true,
-      biodata: { select: { userId: true } }
+      profile: { select: { userId: true } }
     },
   });
 };
 
 export const listOrdersByUser = async (userId: string, params?: { search?: string; limit?: number; offset?: number }) => {
-  const biodata = await prisma.biodata.findUnique({ where: { userId } });
-  if (!biodata) return { orders: [], total: 0 };
+  const profile = await prisma.profile.findUnique({ where: { userId } });
+  if (!profile) return { orders: [], total: 0 };
 
-  const where: any = { biodataId: biodata.id };
+  const where: any = { profileId: profile.id };
 
   if (params?.search) {
     where.items = {
@@ -132,7 +132,7 @@ export const listAllOrders = async () => {
   return prisma.order.findMany({
     include: { 
       items: { include: { product: true } },
-      biodata: { select: { id: true, name: true, phone: true } },
+      profile: { select: { id: true, name: true, phone: true } },
       payment: true
     },
     orderBy: { createdAt: "desc" },
@@ -146,14 +146,14 @@ export const updateStatus = async (id: string, status: any, trackingNo?: string)
   return prisma.order.update({
     where: { id },
     data,
-    include: { biodata: true }
+    include: { profile: true }
   });
 };
 
 export const confirmOrderReceived = async (orderId: string, userId: string) => {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { biodata: true } });
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { profile: true } });
   if (!order) throw new Error("Order not found");
-  if (order.biodata.userId !== userId) throw new Error("Unauthorized");
+  if (order.profile.userId !== userId) throw new Error("Unauthorized");
   if (order.status !== "SHIPPED") throw new Error("Order is not in SHIPPED status");
 
   return prisma.order.update({
@@ -166,12 +166,12 @@ export const cancelOrder = async (orderId: string, userId: string, isAdmin: bool
   return await prisma.$transaction(async (tx: any) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      include: { items: true, biodata: true }
+      include: { items: true, profile: true }
     });
 
     if (!order) throw new Error("Order not found");
     
-    if (!isAdmin && order.biodata.userId !== userId) {
+    if (!isAdmin && order.profile.userId !== userId) {
       throw new Error("Unauthorized to cancel this order");
     }
 
@@ -182,7 +182,7 @@ export const cancelOrder = async (orderId: string, userId: string, isAdmin: bool
     for (const item of order.items) {
       await tx.product.update({
         where: { id: item.productId },
-        data: { stock: { increment: item.quantity } }
+        data: { stock: { increment: item.qty } }
       });
     }
 
@@ -212,7 +212,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
       estimatedDays: { not: null },
       deliveryNotifiedAt: null,
     },
-    include: { biodata: true }
+    include: { profile: true }
   });
 
   for (const order of ordersToNotify) {
@@ -222,7 +222,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
 
     if (now >= estimatedDelivery) {
       await createNotificationFn(
-        order.biodata.userId,
+        order.profile.userId,
         "Konfirmasi Penerimaan Pesanan",
         `Pesanan #${order.id} Anda diperkirakan sudah tiba! Silakan konfirmasi penerimaan pesanan sebelum 3 hari ke depan. Jika tidak dikonfirmasi, sistem akan otomatis menyelesaikan pesanan Anda.`,
         "ORDER"
@@ -240,7 +240,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
       status: "SHIPPED",
       deliveryNotifiedAt: { not: null },
     },
-    include: { biodata: true }
+    include: { profile: true }
   });
 
   for (const order of ordersToAutoComplete) {
@@ -253,7 +253,7 @@ export const processDeliveryNotificationsAndAutoComplete = async (
         data: { status: "COMPLETED" },
       });
       await createNotificationFn(
-        order.biodata.userId,
+        order.profile.userId,
         "Pesanan Diselesaikan Otomatis",
         `Pesanan #${order.id} Anda telah diselesaikan secara otomatis karena tidak ada konfirmasi penerimaan dalam 3 hari.`,
         "ORDER"

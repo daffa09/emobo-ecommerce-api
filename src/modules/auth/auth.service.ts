@@ -16,14 +16,14 @@ export const registerUser = async (email: string, password: string, name?: strin
       passwordHash: hash, 
       isEmailVerified: false,
       verificationToken,
-      biodata: {
+      profile: {
         create: {
           name: name || "User",
           phone: ""
         }
       }
     },
-    include: { biodata: true }
+    include: { profile: true }
   });
 
   // Notify admins when a new customer registers
@@ -51,7 +51,7 @@ export const registerUser = async (email: string, password: string, name?: strin
 export const findUserByEmail = async (email: string) => {
   return prisma.user.findUnique({ 
     where: { email },
-    include: { biodata: true }
+    include: { profile: true }
   });
 };
 
@@ -103,7 +103,7 @@ export const rotateRefreshToken = async (oldToken: string) => {
     // create new refresh token
     const user = await prisma.user.findUnique({ 
       where: { id: dbToken.userId },
-      include: { biodata: true }
+      include: { profile: true }
     });
     if (!user) throw new Error("User not found");
 
