@@ -3,6 +3,8 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
 import authRoute from "./modules/auth/auth.route";
+import brandRoute from "./modules/brands/brand.route";
+import conditionRoute from "./modules/conditions/condition.route";
 import productRoute from "./modules/products/product.route";
 import customerRoute from "./modules/customers/customer.route";
 import orderRoute from "./modules/orders/order.route";
@@ -31,6 +33,8 @@ app.use('/api/v1/uploads', express.static(path.join(__dirname, '../uploads')));
 import docsRoute from "./routes/docs.route";
 
 app.use("/api/v1/auth", authRoute);
+app.use("/api/v1/brands", brandRoute);
+app.use("/api/v1/conditions", conditionRoute);
 app.use("/api/v1/products", productRoute);
 app.use("/api/v1/customers", customerRoute);
 app.use("/api/v1/orders", orderRoute);

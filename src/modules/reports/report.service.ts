@@ -1,28 +1,47 @@
 import prisma from "../../prisma";
 
 export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
-  const reports = await prisma.salesReportView.findMany({
+  const where: any = {};
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = startDate;
+    if (endDate) where.createdAt.lte = endDate;
+  }
+
+  const reports = await prisma.order.findMany({
     where: {
-      orderDate: {
-        gte: startDate,
-        lte: endDate,
-      },
+      ...where,
+      status: { in: ["COMPLETED", "SHIPPED", "PROCESSING"] } // Asumsi status yang masuk report
     },
-    orderBy: { orderDate: "desc" },
+    include: {
+      profile: true,
+      items: {
+        include: { product: true }
+      }
+    },
+    orderBy: { createdAt: "desc" },
   });
 
-  const totalSales = reports.reduce((sum, r) => sum + Number(r.totalAmount), 0);
-  const totalProfit = reports.reduce((sum, r) => sum + Number(r.totalProfit), 0);
+  const formattedReports = reports.map(r => {
+    // Estimasi profit (misal total amount - modal, tapi karena tidak semua modal tercatat valid, kita set profit = total_grand untuk sekarang atau taxAmount)
+    const cost = r.items.reduce((sum, item) => sum + (Number(item.product.buyPrice) * item.qty), 0);
+    const profit = Number(r.total_grand) - cost;
+    
+    return {
+      id: r.id,
+      date: r.createdAt,
+      customer: r.profile?.name || "Customer",
+      totalAmount: Number(r.total_grand),
+      profit: Math.round(profit > 0 ? profit : Number(r.appFee)),
+      items: [], // Details dihilangkan agar konsisten
+    };
+  });
+
+  const totalSales = formattedReports.reduce((sum, r) => sum + Number(r.totalAmount), 0);
+  const totalProfit = formattedReports.reduce((sum, r) => sum + Number(r.profit), 0);
 
   return {
-    orders: reports.map((r) => ({
-      id: r.orderId,
-      date: r.orderDate,
-      customer: r.customerName || "Customer",
-      totalAmount: Number(r.totalAmount),
-      profit: Math.round(Number(r.totalProfit)),
-      items: [], // Details dihilangkan agar report query menjadi lebih cepat menggunakan View
-    })),
+    orders: formattedReports,
     totalSales,
     totalProfit: Math.round(totalProfit),
     period: {
@@ -33,28 +52,40 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
 };
 
 export const generateIncomingGoodsReport = async (startDate?: Date, endDate?: Date) => {
-  const reports = await prisma.incomingGoodsReportView.findMany({
-    where: {
-      poDate: {
-        gte: startDate,
-        lte: endDate,
-      },
+  const where: any = {};
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = startDate;
+    if (endDate) where.createdAt.lte = endDate;
+  }
+
+  const reports = await prisma.purchaseOrder.findMany({
+    where,
+    include: {
+      items: {
+        include: { product: true }
+      }
     },
-    orderBy: { poDate: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 
-  const totalQuantity = reports.reduce((sum, r) => sum + r.totalQuantity, 0);
-  const totalCost = reports.reduce((sum, r) => sum + Number(r.totalCost), 0);
-
-  return {
-    purchases: reports.map((r) => ({
-      id: r.poId,
-      date: r.poDate,
+  const formattedReports = reports.map(r => {
+    const totalCost = r.items.reduce((sum, item) => sum + (Number(item.product.buyPrice) * item.qty), 0);
+    return {
+      id: r.id,
+      date: r.createdAt,
       receiptUrl: r.receiptUrl,
       notes: r.notes || '',
-      totalQuantity: r.totalQuantity,
-      totalCost: Number(r.totalCost),
-    })),
+      totalQuantity: r.totalItemsOnReceipt,
+      totalCost: totalCost,
+    };
+  });
+
+  const totalQuantity = formattedReports.reduce((sum, r) => sum + r.totalQuantity, 0);
+  const totalCost = formattedReports.reduce((sum, r) => sum + Number(r.totalCost), 0);
+
+  return {
+    purchases: formattedReports,
     totalQuantity,
     totalCost: Math.round(totalCost),
     period: {

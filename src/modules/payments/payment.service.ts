@@ -149,9 +149,19 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
       // Only restore if it was still PENDING to avoid double restoration
       if (order && order.status === "PENDING") {
         for (const item of order.items) {
-          await tx.product.update({
+          const updatedProduct = await tx.product.update({
             where: { id: item.productId },
-            data: { stock: { increment: item.quantity } }
+            data: { stock: { increment: item.qty } }
+          });
+          await tx.stock.create({
+            data: {
+              productId: item.productId,
+              type: "IN",
+              referenceId: orderId,
+              qtyIn: item.qty,
+              currentStock: updatedProduct.stock,
+              description: "Pembatalan pembayaran",
+            }
           });
         }
         await tx.order.update({

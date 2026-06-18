@@ -67,6 +67,46 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model Brand {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("brands")
+}
+
+model Condition {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("conditions")
+}
+
+enum MovementType {
+  IN
+  OUT
+}
+
+model Stock {
+  id            String       @id @default(uuid())
+  productId     String       @map("product_id")
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          MovementType
+  referenceId   String?      @map("reference_id")
+  qtyIn         Int          @default(0) @map("qty_in")
+  qtyOut        Int          @default(0) @map("qty_out")
+  currentStock  Int          @map("current_stock")
+  description   String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@map("stock")
+}
+
 model Product {
   id                 String              @id @default(uuid())
   sku                String              @unique
@@ -74,13 +114,15 @@ model Product {
   name               String
   price              Decimal
   buyPrice           Decimal             @default(0) @map("buy_price")
-  brand              String
+  brandId            String              @map("brand_id")
+  brand              Brand               @relation(fields: [brandId], references: [id])
   category           String              @default("General")
   description        String?
   stock              Int                 @default(0)
   images             String[]            @default([])
   specifications     Json                @default("{}")
-  condition          String              @default("NEW")
+  conditionId        String              @map("condition_id")
+  condition          Condition           @relation(fields: [conditionId], references: [id])
   warranty           String?
   weight             Int                 @default(1500)
   createdAt          DateTime            @default(now()) @map("created_at")
@@ -89,6 +131,7 @@ model Product {
   orderItems         OrderItem[]
   reviews            Review[]
   purchaseOrderItems PurchaseOrderItem[]
+  stocks             Stock[]
 
   @@map("products")
 }
@@ -223,28 +266,9 @@ model PurchaseOrderItem {
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   productId       String        @map("product_id")
   product         Product       @relation(fields: [productId], references: [id])
-  quantity        Int
+  qty             Int
 
   @@map("purchase_order_item")
 }
 
-view SalesReportView {
-  orderId      String   @unique @map("order_id")
-  orderDate    DateTime @map("order_date")
-  customerName String?  @map("customer_name")
-  totalAmount  Decimal  @map("total_amount")
-  totalProfit  Decimal  @map("total_profit")
 
-  @@map("sales_reports_view")
-}
-
-view IncomingGoodsReportView {
-  poId          String   @unique @map("po_id")
-  poDate        DateTime @map("po_date")
-  receiptUrl    String   @map("receipt_url")
-  notes         String?  @map("notes")
-  totalQuantity Int      @map("total_quantity")
-  totalCost     Decimal  @map("total_cost")
-
-  @@map("incoming_goods_reports_view")
-}

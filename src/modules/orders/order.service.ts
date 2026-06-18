@@ -68,9 +68,19 @@ export const createOrder = async (
           total_price: oi.unitPrice * oi.qty,
         },
       });
-      await tx.product.update({
+      const updatedProduct = await tx.product.update({
         where: { id: oi.productId },
         data: { stock: { decrement: oi.qty } },
+      });
+      await tx.stock.create({
+        data: {
+          productId: oi.productId,
+          type: "OUT",
+          referenceId: o.id,
+          qtyOut: oi.qty,
+          currentStock: updatedProduct.stock,
+          description: "Pesanan baru",
+        }
       });
     }
 
@@ -180,9 +190,19 @@ export const cancelOrder = async (orderId: string, userId: string, isAdmin: bool
     }
 
     for (const item of order.items) {
-      await tx.product.update({
+      const updatedProduct = await tx.product.update({
         where: { id: item.productId },
         data: { stock: { increment: item.qty } }
+      });
+      await tx.stock.create({
+        data: {
+          productId: item.productId,
+          type: "IN",
+          referenceId: orderId,
+          qtyIn: item.qty,
+          currentStock: updatedProduct.stock,
+          description: "Pesanan dibatalkan",
+        }
       });
     }
 

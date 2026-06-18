@@ -3,26 +3,26 @@ import prisma from "../../prisma";
 export const listPublicProducts = async (params: {
   limit?: number;
   offset?: number;
-  brand?: string;
+  brandId?: string;
   category?: string;
   search?: string;
   minPrice?: number;
   maxPrice?: number;
-  condition?: string;
+  conditionId?: string;
   sortBy?: string;
 }) => {
-  const { limit = 8, offset = 0, brand, category, search, minPrice, maxPrice, condition, sortBy } = params;
+  const { limit = 8, offset = 0, brandId, category, search, minPrice, maxPrice, conditionId, sortBy } = params;
   
   const where: any = { deletedAt: null };
   
-  if (condition) {
-    const conditions = condition.split(",");
-    where.condition = { in: conditions };
+  if (conditionId) {
+    const conditionIds = conditionId.split(",");
+    where.conditionId = { in: conditionIds };
   }
   
-  if (brand) {
-    const brands = brand.split(",");
-    where.brand = { in: brands };
+  if (brandId) {
+    const brandIds = brandId.split(",");
+    where.brandId = { in: brandIds };
   }
   
   if (category) {
@@ -33,8 +33,9 @@ export const listPublicProducts = async (params: {
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" } },
-      { brand: { contains: search, mode: "insensitive" } },
       { category: { contains: search, mode: "insensitive" } },
+      { brand: { name: { contains: search, mode: "insensitive" } } },
+      { condition: { name: { contains: search, mode: "insensitive" } } },
     ];
   }
 
@@ -56,6 +57,8 @@ export const listPublicProducts = async (params: {
       skip: Number(offset),
       orderBy: Object.keys(orderBy).length > 0 ? orderBy : { createdAt: "desc" },
       include: {
+        brand: true,
+        condition: true,
         reviews: { select: { rating: true } },
         _count: { select: { reviews: true } }
       }
@@ -82,6 +85,10 @@ export const listProductsForAdmin = async () => {
   return prisma.product.findMany({
     where: { deletedAt: null },
     orderBy: { updatedAt: "desc" },
+    include: {
+      brand: true,
+      condition: true,
+    }
   });
 };
 
@@ -129,6 +136,8 @@ export const getProductById = async (id: string) => {
   const p = await prisma.product.findUnique({ 
     where: { id },
     include: {
+      brand: true,
+      condition: true,
       reviews: { select: { rating: true } },
       _count: { select: { reviews: true } }
     }
@@ -168,6 +177,8 @@ export const getTopSellingProducts = async (limit: number = 5) => {
       deletedAt: null,
     },
     include: {
+      brand: true,
+      condition: true,
       reviews: { select: { rating: true } },
       _count: { select: { reviews: true } }
     }

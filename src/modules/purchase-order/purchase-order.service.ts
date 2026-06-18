@@ -2,9 +2,8 @@ import prisma from "../../prisma";
 
 export interface PurchaseOrderItemData {
   productId: string;
-  quantity: number;
+  qty: number;
 }
-
 export interface PurchaseOrderData {
   receiptUrl: string;
   totalItemsOnReceipt: number;
@@ -23,7 +22,7 @@ export const createPurchaseOrder = async (data: PurchaseOrderData) => {
         items: {
           create: data.items.map((item) => ({
             productId: item.productId,
-            quantity: item.quantity,
+            qty: item.qty,
           })),
         },
       },
@@ -34,13 +33,24 @@ export const createPurchaseOrder = async (data: PurchaseOrderData) => {
 
     // 2. Update Product Stock for each item
     for (const item of data.items) {
-      await tx.product.update({
+      const updatedProduct = await tx.product.update({
         where: { id: item.productId },
         data: {
           stock: {
-            increment: item.quantity,
+            increment: item.qty,
           },
         },
+      });
+      
+      await tx.stock.create({
+        data: {
+          productId: item.productId,
+          type: "IN",
+          referenceId: po.id,
+          qtyIn: item.qty,
+          currentStock: updatedProduct.stock,
+          description: "Restock PO " + data.receiptUrl,
+        }
       });
     }
 

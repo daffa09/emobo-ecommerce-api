@@ -17,6 +17,16 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE "MovementType" AS ENUM ('IN', 'OUT');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Drop existing tables to recreate (WARNING: Data Loss)
+DROP TABLE IF EXISTS "stock" CASCADE;
+DROP TABLE IF EXISTS "conditions" CASCADE;
+DROP TABLE IF EXISTS "brands" CASCADE;
 -- Drop existing tables to recreate (WARNING: Data Loss)
 DROP TABLE IF EXISTS "purchase_order_item" CASCADE;
 DROP TABLE IF EXISTS "purchase_orders" CASCADE;
@@ -32,6 +42,20 @@ DROP TABLE IF EXISTS "users" CASCADE;
 DROP TABLE IF EXISTS "profiles" CASCADE;
 
 -- Create tables
+
+CREATE TABLE "brands" (
+    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" VARCHAR(255) NOT NULL UNIQUE,
+    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP NOT NULL
+);
+
+CREATE TABLE "conditions" (
+    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "name" VARCHAR(255) NOT NULL UNIQUE,
+    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP NOT NULL
+);
 
 CREATE TABLE "profiles" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,18 +102,33 @@ CREATE TABLE "products" (
     "name" VARCHAR(255) NOT NULL,
     "price" DECIMAL NOT NULL,
     "buy_price" DECIMAL NOT NULL DEFAULT 0,
-    "brand" VARCHAR(100) NOT NULL,
+    "brand_id" UUID NOT NULL,
     "category" VARCHAR(100) NOT NULL DEFAULT 'General',
     "description" TEXT,
     "stock" INTEGER NOT NULL DEFAULT 0,
     "images" TEXT,
     "specifications" JSONB NOT NULL DEFAULT '{}',
-    "condition" VARCHAR(50) NOT NULL DEFAULT 'NEW',
+    "condition_id" UUID NOT NULL,
     "warranty" VARCHAR(100),
     "weight" INTEGER NOT NULL DEFAULT 1500,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
-    "deleted_at" TIMESTAMP
+    "deleted_at" TIMESTAMP,
+    CONSTRAINT "products_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "brands"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "products_condition_id_fkey" FOREIGN KEY ("condition_id") REFERENCES "conditions"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE "stock" (
+    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "product_id" UUID NOT NULL,
+    "type" "MovementType" NOT NULL,
+    "reference_id" VARCHAR(255),
+    "qty_in" INTEGER NOT NULL DEFAULT 0,
+    "qty_out" INTEGER NOT NULL DEFAULT 0,
+    "current_stock" INTEGER NOT NULL,
+    "description" TEXT,
+    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "stock_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "orders" (
@@ -186,39 +225,7 @@ CREATE TABLE "purchase_order_item" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "purchase_order_id" UUID NOT NULL,
     "product_id" UUID NOT NULL,
-    "quantity" INTEGER NOT NULL,
+    "qty" INTEGER NOT NULL,
     CONSTRAINT "purchase_order_item_purchase_order_id_fkey" FOREIGN KEY ("purchase_order_id") REFERENCES "purchase_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "purchase_order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
-
--- Views
-CREATE OR REPLACE VIEW sales_reports_view AS
-SELECT
-    o.id AS order_id,
-    o.created_at AS order_date,
-    p.name AS customer_name,
-    o.total_grand AS total_amount,
-    COALESCE(SUM(
-        (oi.unit_price / 1.11 - COALESCE(prod.buy_price, 0)) * oi.qty
-    ), 0) AS total_profit
-FROM orders o
-LEFT JOIN profiles p ON o.profile_id = p.id
-LEFT JOIN order_item oi ON o.id = oi.order_id
-LEFT JOIN products prod ON oi.product_id = prod.id
-WHERE o.status = 'COMPLETED'
-GROUP BY o.id, o.created_at, p.name, o.total_grand;
-
-
-CREATE OR REPLACE VIEW incoming_goods_reports_view AS
-SELECT 
-    po.id AS po_id,
-    po.created_at AS po_date,
-    po.receipt_url,
-    po.notes,
-    COALESCE(SUM(poi.quantity), 0) AS total_quantity,
-    COALESCE(SUM(poi.quantity * COALESCE(prod.buy_price, 0)), 0) AS total_cost
-FROM purchase_orders po
-LEFT JOIN purchase_order_item poi ON po.id = poi.purchase_order_id
-LEFT JOIN products prod ON poi.product_id = prod.id
-GROUP BY po.id, po.created_at, po.receipt_url, po.notes;
-
