@@ -24,7 +24,7 @@ EXCEPTION
 END $$;
 
 -- Drop existing tables to recreate (WARNING: Data Loss)
-DROP TABLE IF EXISTS "stock" CASCADE;
+DROP TABLE IF EXISTS "monitor_stock" CASCADE;
 DROP TABLE IF EXISTS "conditions" CASCADE;
 DROP TABLE IF EXISTS "brands" CASCADE;
 -- Drop existing tables to recreate (WARNING: Data Loss)
@@ -118,7 +118,7 @@ CREATE TABLE "products" (
     CONSTRAINT "products_condition_id_fkey" FOREIGN KEY ("condition_id") REFERENCES "conditions"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE "stock" (
+CREATE TABLE "monitor_stock" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "product_id" UUID NOT NULL,
     "type" "MovementType" NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE "stock" (
     "current_stock" INTEGER NOT NULL,
     "description" TEXT,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "stock_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "monitor_stock_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "orders" (
@@ -260,4 +260,7 @@ SELECT
     CURRENT_TIMESTAMP,
     id
 FROM inserted_profile;
+
+-- Default Conditions Seed
+INSERT INTO "conditions" ("name") VALUES ('New'), ('Second');
 

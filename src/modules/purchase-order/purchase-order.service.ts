@@ -42,7 +42,7 @@ export const createPurchaseOrder = async (data: PurchaseOrderData) => {
         },
       });
       
-      await tx.stock.create({
+      await tx.monitorStock.create({
         data: {
           productId: item.productId,
           type: "IN",

@@ -153,7 +153,7 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
             where: { id: item.productId },
             data: { stock: { increment: item.qty } }
           });
-          await tx.stock.create({
+          await tx.monitorStock.create({
             data: {
               productId: item.productId,
               type: "IN",

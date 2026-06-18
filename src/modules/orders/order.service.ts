@@ -72,7 +72,7 @@ export const createOrder = async (
         where: { id: oi.productId },
         data: { stock: { decrement: oi.qty } },
       });
-      await tx.stock.create({
+      await tx.monitorStock.create({
         data: {
           productId: oi.productId,
           type: "OUT",
@@ -194,7 +194,7 @@ export const cancelOrder = async (orderId: string, userId: string, isAdmin: bool
         where: { id: item.productId },
         data: { stock: { increment: item.qty } }
       });
-      await tx.stock.create({
+      await tx.monitorStock.create({
         data: {
           productId: item.productId,
           type: "IN",

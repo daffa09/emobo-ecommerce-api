@@ -92,7 +92,7 @@ enum MovementType {
   OUT
 }
 
-model Stock {
+model MonitorStock {
   id            String       @id @default(uuid())
   productId     String       @map("product_id")
   product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -104,7 +104,7 @@ model Stock {
   description   String?
   createdAt     DateTime     @default(now()) @map("created_at")
 
-  @@map("stock")
+  @@map("monitor_stock")
 }
 
 model Product {
@@ -131,7 +131,7 @@ model Product {
   orderItems         OrderItem[]
   reviews            Review[]
   purchaseOrderItems PurchaseOrderItem[]
-  stocks             Stock[]
+  monitorStocks      MonitorStock[]
 
   @@map("products")
 }
