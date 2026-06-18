@@ -229,3 +229,35 @@ CREATE TABLE "purchase_order_item" (
     CONSTRAINT "purchase_order_item_purchase_order_id_fkey" FOREIGN KEY ("purchase_order_id") REFERENCES "purchase_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "purchase_order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- Default Admin Seed
+WITH inserted_profile AS (
+    INSERT INTO "profiles" (
+        "name", 
+        "phone"
+    )
+    VALUES (
+        'Admin Emobo', 
+        '-'
+    )
+    RETURNING id
+)
+INSERT INTO "users" (
+    "email", 
+    "password_hash", 
+    "role", 
+    "is_email_verified", 
+    "created_at", 
+    "updated_at",
+    "profile_id"
+)
+SELECT 
+    'admin@emobo.com', 
+    '$2b$10$xC/hWtuN788gj5saGqEsGeqwqaeEnnyEV3R3p9SfoKn4cEL5Os.we', -- Hash dari 'password123'
+    'ADMIN', 
+    true, 
+    CURRENT_TIMESTAMP, 
+    CURRENT_TIMESTAMP,
+    id
+FROM inserted_profile;
+
