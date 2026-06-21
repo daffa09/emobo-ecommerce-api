@@ -64,8 +64,8 @@ CREATE TABLE "profiles" (
     "image" TEXT,
     "address" VARCHAR(255),
     "address_notes" VARCHAR(255),
-    "province_id" UUID,
-    "city_id" UUID,
+    "province_id" VARCHAR(50),
+    "city_id" VARCHAR(50),
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION
 );
@@ -106,7 +106,7 @@ CREATE TABLE "products" (
     "category" VARCHAR(100) NOT NULL DEFAULT 'General',
     "description" TEXT,
     "stock" INTEGER NOT NULL DEFAULT 0,
-    "images" TEXT,
+    "images" TEXT[] DEFAULT '{}',
     "specifications" JSONB NOT NULL DEFAULT '{}',
     "condition_id" UUID NOT NULL,
     "warranty" VARCHAR(100),
@@ -262,5 +262,5 @@ SELECT
 FROM inserted_profile;
 
 -- Default Conditions Seed
-INSERT INTO "conditions" ("name") VALUES ('New'), ('Second');
+INSERT INTO "conditions" ("name", "updated_at") VALUES ('New', CURRENT_TIMESTAMP), ('Second', CURRENT_TIMESTAMP);
 

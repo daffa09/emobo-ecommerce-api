@@ -22,15 +22,19 @@ export const createOrder = async (
   });
 
   let lineTotal = 0;
-  const orderItemsData = items.map((i) => {
+  const orderItemsData = items.map((i: any) => {
     const p = products.find((pp: any) => pp.id === i.productId);
     if (!p) throw new Error(`Product ${i.productId} not found`);
-    if (p.stock < i.qty) throw new Error(`Insufficient stock for product ${p.name}`);
+    
+    const qty = Number(i.qty || i.quantity || 1);
+    if (p.stock < qty) throw new Error(`Insufficient stock for product ${p.name}`);
+    
     const priceNum = Number(p.price);
-    lineTotal += priceNum * i.qty;
+    lineTotal += priceNum * qty;
+    
     return {
       productId: i.productId,
-      qty: i.qty,
+      qty: qty,
       unitPrice: priceNum,
     };
   });
@@ -45,7 +49,7 @@ export const createOrder = async (
   const order = await prisma.$transaction(async (tx: any) => {
     const o = await tx.order.create({
       data: {
-        profileId,
+        profile: { connect: { id: profileId } },
         total_grand: totalAmount,
         shippingCost,
         shippingService,
