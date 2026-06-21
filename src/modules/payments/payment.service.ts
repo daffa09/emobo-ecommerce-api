@@ -44,8 +44,8 @@ export const createFlipPayment = async (orderId: string) => {
     is_phone_number_required: "0",
     step: "2", 
     sender_name: order.profile?.name || "Customer",
-    sender_email: order.profile?.user?.email || "",
-    sender_phone_number: order.phone || "",
+    sender_email: order.profile?.user?.email || "customer@example.com",
+    sender_phone_number: order.phone || "08123456789",
   });
 
   console.log("Flip Payload:", payload.toString());

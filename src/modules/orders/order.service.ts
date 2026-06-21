@@ -29,7 +29,7 @@ export const createOrder = async (
     const qty = Number(i.qty || i.quantity || 1);
     if (p.stock < qty) throw new Error(`Insufficient stock for product ${p.name}`);
     
-    const priceNum = Number(p.price);
+    const priceNum = Number(p.price?.toString() || "0");
     lineTotal += priceNum * qty;
     
     return {
