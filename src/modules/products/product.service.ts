@@ -4,6 +4,7 @@ export const listPublicProducts = async (params: {
   limit?: number;
   offset?: number;
   brandId?: string;
+  brand?: string;
   category?: string;
   search?: string;
   minPrice?: number;
@@ -11,7 +12,7 @@ export const listPublicProducts = async (params: {
   conditionId?: string;
   sortBy?: string;
 }) => {
-  const { limit = 8, offset = 0, brandId, category, search, minPrice, maxPrice, conditionId, sortBy } = params;
+  const { limit = 8, offset = 0, brandId, brand, category, search, minPrice, maxPrice, conditionId, sortBy } = params;
   
   const where: any = { deletedAt: null };
   
@@ -23,6 +24,21 @@ export const listPublicProducts = async (params: {
   if (brandId) {
     const brandIds = brandId.split(",");
     where.brandId = { in: brandIds };
+  }
+
+  if (brand) {
+    const brandNames = brand.toLowerCase().split(",");
+    const allBrands = await prisma.brand.findMany();
+    const matchedBrandIds = allBrands.filter(b => brandNames.includes(b.name.toLowerCase())).map(b => b.id);
+    if (matchedBrandIds.length > 0) {
+      if (where.brandId) {
+         where.brandId.in = [...new Set([...where.brandId.in, ...matchedBrandIds])];
+      } else {
+         where.brandId = { in: matchedBrandIds };
+      }
+    } else {
+      where.brandId = { in: ['not-found'] };
+    }
   }
   
   if (category) {
