@@ -49,7 +49,7 @@ export const listPublicProducts = async (params: {
          where.brandId = { in: matchedBrandIds };
       }
     } else {
-      where.brandId = { in: ['not-found'] };
+      where.brandId = { in: ['00000000-0000-0000-0000-000000000000'] };
     }
   }
   
