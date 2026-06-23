@@ -13,48 +13,35 @@ export interface PurchaseOrderData {
 
 export const createPurchaseOrder = async (data: PurchaseOrderData) => {
   return prisma.$transaction(async (tx) => {
-    // 1. Create Purchase Order with nested items
-    const po = await tx.purchaseOrder.create({
+    // 1. Create Purchase Order
+    const newPo = await tx.purchaseOrder.create({
       data: {
         receiptUrl: data.receiptUrl,
         totalItemsOnReceipt: data.totalItemsOnReceipt,
         notes: data.notes,
-        items: {
-          create: data.items.map((item) => ({
-            productId: item.productId,
-            qty: item.qty,
-          })),
-        },
-      },
-      include: {
-        items: true,
       },
     });
 
-    // 2. Update Product Stock for each item
+    // 2. Create Items and update stock
     for (const item of data.items) {
-      const updatedProduct = await tx.product.update({
-        where: { id: item.productId },
+      await tx.purchaseOrderItem.create({
         data: {
-          stock: {
-            increment: item.qty,
-          },
+          purchaseOrderId: newPo.id,
+          productId: item.productId,
+          qty: item.qty,
         },
       });
-      
-      await tx.monitorStock.create({
-        data: {
-          productId: item.productId,
-          type: "IN",
-          referenceId: po.id,
-          qtyIn: item.qty,
-          currentStock: updatedProduct.stock,
-          description: "Restock PO " + data.receiptUrl,
-        }
+
+      await tx.monitorStock.update({
+        where: { productId: item.productId },
+        data: { currentStock: { increment: item.qty } },
       });
     }
 
-    return po;
+    return await tx.purchaseOrder.findUnique({
+      where: { id: newPo.id },
+      include: { items: true },
+    });
   });
 };
 

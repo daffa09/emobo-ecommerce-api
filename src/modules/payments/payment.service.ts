@@ -139,38 +139,23 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
     console.log(`[PAYMENT DEBUG] Order ${orderId} updated successfully to ${updatedOrder.status}`);
   } else if (paymentStatus === "FAILED") {
     console.log(`[PAYMENT DEBUG] Handling failed payment for Order ${orderId}`);
-    // Restore stock if payment failed/expired/cancelled
-    await prisma.$transaction(async (tx: any) => {
-      const order = await tx.order.findUnique({
-        where: { id: orderId },
-        include: { items: true }
-      });
-
-      // Only restore if it was still PENDING to avoid double restoration
-      if (order && order.status === "PENDING") {
-        for (const item of order.items) {
-          const updatedProduct = await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.qty } }
-          });
-          await tx.monitorStock.create({
-            data: {
-              productId: item.productId,
-              type: "IN",
-              referenceId: orderId,
-              qtyIn: item.qty,
-              currentStock: updatedProduct.stock,
-              description: "Pembatalan pembayaran",
-            }
-          });
-        }
+    const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+    if (order && order.status === "PENDING") {
+      await prisma.$transaction(async (tx) => {
         await tx.order.update({
           where: { id: orderId },
           data: { status: "CANCELLED" }
         });
-        console.log(`[PAYMENT DEBUG] Order ${orderId} cancelled and stock restored`);
-      }
-    });
+        
+        for (const item of order.items) {
+          await tx.monitorStock.update({
+            where: { productId: item.productId },
+            data: { currentStock: { increment: item.qty } }
+          });
+        }
+      });
+      console.log(`[PAYMENT DEBUG] Order ${orderId} cancelled and stock restored`);
+    }
   }
 
   return updatedPayment;

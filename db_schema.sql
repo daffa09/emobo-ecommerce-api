@@ -105,7 +105,6 @@ CREATE TABLE "products" (
     "brand_id" UUID NOT NULL,
     "category" VARCHAR(100) NOT NULL DEFAULT 'General',
     "description" TEXT,
-    "stock" INTEGER NOT NULL DEFAULT 0,
     "images" TEXT[] DEFAULT '{}',
     "specifications" JSONB NOT NULL DEFAULT '{}',
     "condition_id" UUID NOT NULL,
@@ -120,16 +119,14 @@ CREATE TABLE "products" (
 
 CREATE TABLE "monitor_stock" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "product_id" UUID NOT NULL,
-    "type" "MovementType" NOT NULL,
-    "reference_id" VARCHAR(255),
-    "qty_in" INTEGER NOT NULL DEFAULT 0,
-    "qty_out" INTEGER NOT NULL DEFAULT 0,
+    "product_id" UUID NOT NULL UNIQUE,
     "current_stock" INTEGER NOT NULL,
-    "description" TEXT,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "monitor_stock_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+
 
 CREATE TABLE "orders" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -263,4 +260,45 @@ FROM inserted_profile;
 
 -- Default Conditions Seed
 INSERT INTO "conditions" ("name", "updated_at") VALUES ('New', CURRENT_TIMESTAMP), ('Second', CURRENT_TIMESTAMP);
+
+
+CREATE OR REPLACE VIEW "monitor_stock_view" AS
+SELECT 
+    p.id AS product_id,
+    COALESCE(po.qty_in, 0) AS qty_in,
+    COALESCE(o.qty_out, 0) AS qty_out,
+    (COALESCE(po.qty_in, 0) - COALESCE(o.qty_out, 0))::INTEGER AS current_stock
+FROM "products" p
+LEFT JOIN (
+    SELECT product_id, SUM(qty)::INTEGER AS qty_in 
+    FROM "purchase_order_item" 
+    GROUP BY product_id
+) po ON p.id = po.product_id
+LEFT JOIN (
+    SELECT oi.product_id, SUM(oi.qty)::INTEGER AS qty_out 
+    FROM "order_item" oi
+    JOIN "orders" ord ON oi.order_id = ord.id
+    WHERE ord.status != 'CANCELLED'
+    GROUP BY oi.product_id
+) o ON p.id = o.product_id;
+
+
+CREATE OR REPLACE VIEW "stock_report_view" AS
+SELECT 
+    p.id AS product_id,
+    COALESCE(po.qty_in, 0) AS qty_in,
+    COALESCE(o.qty_out, 0) AS qty_out
+FROM "products" p
+LEFT JOIN (
+    SELECT product_id, SUM(qty)::INTEGER AS qty_in 
+    FROM "purchase_order_item" 
+    GROUP BY product_id
+) po ON p.id = po.product_id
+LEFT JOIN (
+    SELECT oi.product_id, SUM(oi.qty)::INTEGER AS qty_out 
+    FROM "order_item" oi
+    JOIN "orders" ord ON oi.order_id = ord.id
+    WHERE ord.status != 'CANCELLED'
+    GROUP BY oi.product_id
+) o ON p.id = o.product_id;
 

@@ -1,5 +1,17 @@
 import prisma from "../../prisma";
 
+export const getLatestStockMap = async (productIds: string[]) => {
+  if (!productIds.length) return {};
+  const stocks = await prisma.monitorStock.findMany({
+    where: { productId: { in: productIds } },
+    select: { productId: true, currentStock: true },
+  });
+  return stocks.reduce((acc, ms) => {
+    acc[ms.productId] = ms.currentStock;
+    return acc;
+  }, {} as Record<string, number>);
+};
+
 export const listPublicProducts = async (params: {
   limit?: number;
   offset?: number;
@@ -82,6 +94,9 @@ export const listPublicProducts = async (params: {
     prisma.product.count({ where }),
   ]);
 
+  const productIds = products.map((p: any) => p.id);
+  const stockMap = await getLatestStockMap(productIds);
+
   const formattedProducts = products.map((p: any) => {
     const totalRating = p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
     const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
@@ -89,6 +104,7 @@ export const listPublicProducts = async (params: {
     const { reviews, ...rest } = p; 
     return {
       ...rest,
+      stock: stockMap[p.id] || 0,
       rating: Number(averageRating),
       reviewsCount: p._count.reviews
     };
@@ -98,7 +114,7 @@ export const listPublicProducts = async (params: {
 };
 
 export const listProductsForAdmin = async () => {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { deletedAt: null },
     orderBy: { updatedAt: "desc" },
     include: {
@@ -106,6 +122,14 @@ export const listProductsForAdmin = async () => {
       condition: true,
     }
   });
+
+  const productIds = products.map((p) => p.id);
+  const stockMap = await getLatestStockMap(productIds);
+
+  return products.map((p) => ({
+    ...p,
+    stock: stockMap[p.id] || 0,
+  }));
 };
 
 const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
@@ -136,8 +160,11 @@ export const deleteProduct = async (id: string) => {
 
   if (!product) throw new Error("Product not found");
 
+  const stockMap = await getLatestStockMap([id]);
+  const currentStock = stockMap[id] || 0;
+
   // If product has stock or has been part of a transaction, soft delete it
-  if (product.stock > 0 || product._count.orderItems > 0) {
+  if (currentStock > 0 || product._count.orderItems > 0) {
     return prisma.product.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -161,12 +188,15 @@ export const getProductById = async (id: string) => {
 
   if (!p) return null;
 
+  const stockMap = await getLatestStockMap([id]);
+
   const totalRating = p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
   const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
   
   const { reviews, ...rest } = p; 
   return {
     ...rest,
+    stock: stockMap[id] || 0,
     rating: Number(averageRating),
     reviewsCount: p._count.reviews
   };
@@ -200,6 +230,9 @@ export const getTopSellingProducts = async (limit: number = 5) => {
     }
   });
 
+  const productIdsMap = products.map((p) => p.id);
+  const stockMap = await getLatestStockMap(productIdsMap);
+
   return result.map((r) => {
     const p: any = products.find((pp) => pp.id === r.productId);
     const totalRating = p.reviews.reduce((sum: number, rev: any) => sum + rev.rating, 0);
@@ -207,6 +240,7 @@ export const getTopSellingProducts = async (limit: number = 5) => {
     const { reviews, ...rest } = p;
     return {
       ...rest,
+      stock: stockMap[p.id] || 0,
       rating: Number(averageRating),
       reviewsCount: p._count.reviews,
       totalSold: r._sum.qty,

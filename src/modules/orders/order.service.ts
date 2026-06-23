@@ -1,4 +1,5 @@
 import prisma from "../../prisma";
+import { getLatestStockMap } from "../products/product.service";
 
 export const createOrder = async (
   userId: string,
@@ -21,13 +22,16 @@ export const createOrder = async (
     } 
   });
 
+  const stockMap = await getLatestStockMap(productIds);
+
   let lineTotal = 0;
   const orderItemsData = items.map((i: any) => {
     const p = products.find((pp: any) => pp.id === i.productId);
     if (!p) throw new Error(`Product ${i.productId} not found`);
     
     const qty = Number(i.qty || i.quantity || 1);
-    if (p.stock < qty) throw new Error(`Insufficient stock for product ${p.name}`);
+    const currentStock = stockMap[p.id] || 0;
+    if (currentStock < qty) throw new Error(`Insufficient stock for product ${p.name}`);
     
     const priceNum = Number(p.price?.toString() || "0");
     lineTotal += priceNum * qty;
@@ -72,19 +76,9 @@ export const createOrder = async (
           total_price: oi.unitPrice * oi.qty,
         },
       });
-      const updatedProduct = await tx.product.update({
-        where: { id: oi.productId },
-        data: { stock: { decrement: oi.qty } },
-      });
-      await tx.monitorStock.create({
-        data: {
-          productId: oi.productId,
-          type: "OUT",
-          referenceId: o.id,
-          qtyOut: oi.qty,
-          currentStock: updatedProduct.stock,
-          description: "Pesanan baru",
-        }
+      await tx.monitorStock.update({
+        where: { productId: oi.productId },
+        data: { currentStock: { decrement: oi.qty } }
       });
     }
 
@@ -194,19 +188,9 @@ export const cancelOrder = async (orderId: string, userId: string, isAdmin: bool
     }
 
     for (const item of order.items) {
-      const updatedProduct = await tx.product.update({
-        where: { id: item.productId },
-        data: { stock: { increment: item.qty } }
-      });
-      await tx.monitorStock.create({
-        data: {
-          productId: item.productId,
-          type: "IN",
-          referenceId: orderId,
-          qtyIn: item.qty,
-          currentStock: updatedProduct.stock,
-          description: "Pesanan dibatalkan",
-        }
+      await tx.monitorStock.update({
+        where: { productId: item.productId },
+        data: { currentStock: { increment: item.qty } }
       });
     }
 

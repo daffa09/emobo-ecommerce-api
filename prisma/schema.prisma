@@ -93,18 +93,23 @@ enum MovementType {
 }
 
 model MonitorStock {
-  id            String       @id @default(uuid())
-  productId     String       @map("product_id")
-  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type          MovementType
-  referenceId   String?      @map("reference_id")
-  qtyIn         Int          @default(0) @map("qty_in")
-  qtyOut        Int          @default(0) @map("qty_out")
-  currentStock  Int          @map("current_stock")
-  description   String?
-  createdAt     DateTime     @default(now()) @map("created_at")
+  id           String   @id @default(uuid())
+  productId    String   @unique @map("product_id")
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  currentStock Int      @map("current_stock")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("monitor_stock")
+}
+
+view StockReportView {
+  productId    String  @unique @map("product_id")
+  product      Product @relation(fields: [productId], references: [id])
+  qtyIn        Int     @map("qty_in")
+  qtyOut       Int     @map("qty_out")
+
+  @@map("stock_report_view")
 }
 
 model Product {
@@ -118,7 +123,6 @@ model Product {
   brand              Brand               @relation(fields: [brandId], references: [id])
   category           String              @default("General")
   description        String?
-  stock              Int                 @default(0)
   images             String[]            @default([])
   specifications     Json                @default("{}")
   conditionId        String              @map("condition_id")
@@ -131,7 +135,8 @@ model Product {
   orderItems         OrderItem[]
   reviews            Review[]
   purchaseOrderItems PurchaseOrderItem[]
-  monitorStocks      MonitorStock[]
+  monitorStock       MonitorStock?
+  stockReport        StockReportView?
 
   @@map("products")
 }
