@@ -29,6 +29,7 @@ export const createMidtransPayment = async (orderId: string) => {
   const existing = await prisma.payment.findUnique({ where: { orderId } });
   if (existing && existing.redirectUrl) return existing;
 
+  const frontendUrl = process.env.FRONTEND_URL || "https://skripsi.daffathan-labs.my.id";
   const payload = {
     transaction_details: {
       order_id: orderId,
@@ -39,6 +40,9 @@ export const createMidtransPayment = async (orderId: string) => {
       email: order.profile?.user?.email || "customer@example.com",
       phone: order.phone || "08123456789",
     },
+    callbacks: {
+      finish: `${frontendUrl}/account/orders`
+    }
   };
 
   console.log("Midtrans Payload:", JSON.stringify(payload));

@@ -129,7 +129,7 @@ CREATE TABLE "monitor_stock" (
 
 
 CREATE TABLE "orders" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "id" VARCHAR(100) NOT NULL PRIMARY KEY,
     "profile_id" UUID NOT NULL,
     "total_grand" DECIMAL NOT NULL,
     "shipping_cost" DECIMAL NOT NULL DEFAULT 0,
@@ -150,7 +150,7 @@ CREATE TABLE "orders" (
 
 CREATE TABLE "order_item" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "order_id" UUID NOT NULL,
+    "order_id" VARCHAR(100) NOT NULL,
     "product_id" UUID NOT NULL,
     "qty" INTEGER NOT NULL,
     "unit_price" DECIMAL NOT NULL,
@@ -161,9 +161,9 @@ CREATE TABLE "order_item" (
 
 CREATE TABLE "payments" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "order_id" UUID NOT NULL UNIQUE,
-    "provider" VARCHAR(100) NOT NULL,
-    "provider_id" VARCHAR(255),
+    "order_id" VARCHAR(100) NOT NULL UNIQUE,
+    "provider" VARCHAR(50) NOT NULL,
+    "provider_id" VARCHAR(100) NOT NULL,
     "snap_token" VARCHAR(255),
     "redirect_url" VARCHAR(255),
     "amount" DECIMAL NOT NULL,
@@ -176,7 +176,7 @@ CREATE TABLE "payments" (
 
 CREATE TABLE "reviews" (
     "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "order_id" UUID NOT NULL,
+    "order_id" VARCHAR(100) NOT NULL,
     "product_id" UUID NOT NULL,
     "profile_id" UUID NOT NULL,
     "rating" INTEGER NOT NULL,
