@@ -6,21 +6,21 @@ import prisma from "../../prisma";
 export const createPayment = async (req: Request, res: Response) => {
   const orderId = req.params.orderId;
   try {
-    const payment = await service.createMidtransPayment(orderId);
+    const payment = await service.createPayment(orderId);
     return sendResponse(res, 201, "payment created", payment);
   } catch (err: any) {
-    console.error("Midtrans create error:", err);
+    console.error("Payment create error:", err);
     return sendResponse(res, 400, err.message);
   }
 };
 
-// webhook endpoint for Midtrans
+// webhook endpoint for Payment Gateway
 export const webhook = async (req: Request, res: Response) => {
   try {
-    await service.handleMidtransCallback(req.body);
+    await service.handleWebhookCallback(req.body);
     return res.status(200).send("OK");
   } catch (err) {
-    console.error("Midtrans webhook error:", err);
+    console.error("Webhook error:", err);
     return res.status(400).send("ERROR");
   }
 };

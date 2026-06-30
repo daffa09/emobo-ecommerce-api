@@ -1,6 +1,16 @@
 import prisma from "../../prisma";
 import axios from "axios";
 
+// Flip Configuration
+const FLIP_SECRET_KEY = process.env.FLIP_SECRET_KEY || "";
+const FLIP_AUTH_HEADER = "Basic " + Buffer.from(FLIP_SECRET_KEY + ":").toString("base64");
+const FLIP_IS_PRODUCTION = process.env.FLIP_IS_PRODUCTION === "true";
+
+const flipBillsUrl = FLIP_IS_PRODUCTION 
+  ? "https://bigflip.id/api/v2/pwf/bill" 
+  : "https://bigflip.id/big_sandbox_api/v2/pwf/bill";
+
+// Midtrans Configuration
 const MIDTRANS_IS_PRODUCTION = process.env.MIDTRANS_IS_PRODUCTION === "true";
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
 const MIDTRANS_AUTH_HEADER = "Basic " + Buffer.from(MIDTRANS_SERVER_KEY + ":").toString("base64");
@@ -13,7 +23,82 @@ const midtransApiUrl = MIDTRANS_IS_PRODUCTION
   ? "https://api.midtrans.com/v2"
   : "https://api.sandbox.midtrans.com/v2";
 
-export const createMidtransPayment = async (orderId: string) => {
+export const createPayment = async (orderId: string) => {
+  const gateway = process.env.PAYMENT_GATEWAY || "midtrans";
+  
+  if (gateway === "flip") {
+    return createFlipPayment(orderId);
+  } else {
+    return createMidtransPayment(orderId);
+  }
+};
+
+const createFlipPayment = async (orderId: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { profile: { include: { user: true } } },
+  });
+
+  if (!order) throw new Error("Order not found");
+
+  const existing = await prisma.payment.findUnique({ where: { orderId } });
+  if (existing && existing.redirectUrl) return existing;
+
+  const frontendUrl = process.env.FRONTEND_URL || "https://skripsi.daffathan-labs.my.id";
+
+  const payload = new URLSearchParams({
+    title: `Payment for Order ${orderId}`,
+    amount: order.total_grand.toString(),
+    type: "SINGLE",
+    expired_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().replace("T", " ").substring(0, 16),
+    redirect_url: `${frontendUrl}/account/orders`,
+    is_address_required: "0",
+    is_phone_number_required: "0",
+    sender_name: order.profile?.name || "Customer",
+    sender_email: order.profile?.user?.email || "customer@example.com",
+    sender_phone_number: order.phone || "08123456789",
+  });
+
+  console.log("Flip Payload:", payload.toString());
+
+  try {
+    const response = await axios.post(flipBillsUrl, payload, {
+      headers: {
+        "Authorization": FLIP_AUTH_HEADER,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    const bill = response.data;
+    
+    const payment = await prisma.payment.upsert({
+      where: { orderId },
+      update: {
+        provider: "flip",
+        providerId: bill.link_id.toString(), 
+        snapToken: "",
+        redirectUrl: bill.link_url,
+        amount: order.total_grand,
+      },
+      create: {
+        orderId,
+        provider: "flip",
+        providerId: bill.link_id.toString(),
+        snapToken: "",
+        redirectUrl: bill.link_url,
+        amount: order.total_grand,
+        status: "PENDING",
+      },
+    });
+
+    return payment;
+  } catch (error: any) {
+    console.error("Flip Create Bill Error:", error.response?.data || error.message);
+    throw new Error("Failed to create Flip payment");
+  }
+};
+
+const createMidtransPayment = async (orderId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -84,7 +169,6 @@ export const createMidtransPayment = async (orderId: string) => {
   }
 };
 
-// Helper function to handle status updates and DB changes
 const updatePaymentAndOrder = async (providerId: string, transactionStatus: string) => {
   console.log(`[PAYMENT DEBUG] Processing status update for providerId ${providerId}`);
   console.log(`[PAYMENT DEBUG] Transaction Status: ${transactionStatus}`);
@@ -92,7 +176,6 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
   const payment = await prisma.payment.findFirst({ where: { providerId } });
   if (!payment) {
     console.error(`[PAYMENT DEBUG] Payment not found in database for providerId: ${providerId}`);
-    // Do not throw to return gracefully to webhook caller if not found
     return null;
   }
 
@@ -102,9 +185,11 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
 
   let paymentStatus: "PAID" | "FAILED" | "PENDING" = "PENDING";
 
-  if (transactionStatus === "settlement" || transactionStatus === "capture") {
+  if (transactionStatus === "SUCCESSFUL" || transactionStatus === "settlement" || transactionStatus === "capture") {
     paymentStatus = "PAID";
   } else if (
+    transactionStatus === "CANCELLED" ||
+    transactionStatus === "FAILED" ||
     transactionStatus === "deny" ||
     transactionStatus === "cancel" ||
     transactionStatus === "expire" ||
@@ -158,8 +243,8 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
   return updatedPayment;
 };
 
-export const handleMidtransCallback = async (data: any) => {
-  console.log("Handling Midtrans Notification (Webhook)");
+export const handleWebhookCallback = async (data: any) => {
+  console.log("Handling Webhook Notification");
   
   let parsedData = data;
   if (typeof data === "string") {
@@ -168,21 +253,31 @@ export const handleMidtransCallback = async (data: any) => {
     } catch (e) {
       console.log("Could not parse string data as JSON");
     }
+  } else if (data.data) {
+    try {
+      parsedData = JSON.parse(data.data);
+    } catch (e) {
+      parsedData = data.data; 
+    }
   }
 
-  const providerId = parsedData.order_id?.toString();
+  if (Array.isArray(parsedData)) {
+    parsedData = parsedData[0];
+  }
+
+  const providerId = parsedData.order_id?.toString() || parsedData.bill_link_id?.toString() || parsedData.link_id?.toString() || parsedData.id?.toString();
 
   if (!providerId) {
-    console.error("Midtrans payload invalid:", parsedData);
-    throw new Error("Invalid Midtrans callback payload");
+    console.error("Payload invalid, cannot find order_id or link_id:", parsedData);
+    throw new Error("Invalid callback payload");
   }
 
-  console.log(`[PAYMENT DEBUG] Webhook trigger received for order_id ${providerId}`);
+  console.log(`[PAYMENT DEBUG] Webhook trigger received for providerId/order_id ${providerId}`);
 
   const payment = await prisma.payment.findFirst({ where: { providerId } });
   
   if (!payment) {
-    console.error(`[PAYMENT DEBUG] Payment not found in database for order_id: ${providerId}`);
+    console.error(`[PAYMENT DEBUG] Payment not found in database for providerId: ${providerId}`);
     return null; 
   }
 
@@ -197,24 +292,71 @@ export const verifyPayment = async (orderId: string) => {
 
   if (payment.status === "PAID") return payment;
 
-  try {
-    const statusUrl = `${midtransApiUrl}/${payment.providerId}/status`;
+  if (payment.provider === "flip") {
+    try {
+      const paymentUrl = FLIP_IS_PRODUCTION 
+        ? "https://bigflip.id/api/v2/pwf/payment" 
+        : "https://bigflip.id/big_sandbox_api/v2/pwf/payment";
+        
+      const response = await axios.get(paymentUrl, {
+        params: { bill_link_id: payment.providerId },
+        headers: { "Authorization": FLIP_AUTH_HEADER },
+      });
       
-    const response = await axios.get(statusUrl, {
-      headers: {
-        "Authorization": MIDTRANS_AUTH_HEADER,
-        "Accept": "application/json",
-      },
-    });
-    
-    const paymentDataResponse = response.data;
-    console.log(`Midtrans payment check response for ${payment.providerId}:`, JSON.stringify(paymentDataResponse));
-    
-    const finalStatus = paymentDataResponse.transaction_status || "PENDING";
-    
-    return await updatePaymentAndOrder(payment.providerId!, finalStatus);
-  } catch (err: any) {
-    console.error("Midtrans status check error:", err.response?.data || err.message);
-    return payment;
+      const paymentDataResponse = response.data;
+      console.log(`Flip payment check response for ${payment.providerId}:`, JSON.stringify(paymentDataResponse));
+      
+      let finalStatus = "PENDING";
+      
+      if (paymentDataResponse && paymentDataResponse.data && Array.isArray(paymentDataResponse.data)) {
+        const hasSuccessful = paymentDataResponse.data.some((p: any) => p.status === "SUCCESSFUL");
+        if (hasSuccessful) {
+          finalStatus = "SUCCESSFUL";
+        } else {
+           const hasFailed = paymentDataResponse.data.some((p: any) => p.status === "FAILED" || p.status === "CANCELLED");
+           if (hasFailed) finalStatus = "FAILED";
+        }
+      }
+      
+      if (finalStatus === "PENDING") {
+         const billResponse = await axios.get(flipBillsUrl, {
+           params: { id: payment.providerId },
+           headers: { "Authorization": FLIP_AUTH_HEADER },
+         });
+         const statusResponse = billResponse.data;
+         const billData = Array.isArray(statusResponse) ? statusResponse[0] : statusResponse;
+         
+         if (billData && billData.status === "INACTIVE") {
+           finalStatus = "FAILED";
+         }
+      }
+      
+      return await updatePaymentAndOrder(payment.providerId!, finalStatus);
+    } catch (err: any) {
+      console.error("Flip status check error:", err.response?.data || err.message);
+      return payment;
+    }
+  } else {
+    // midtrans logic
+    try {
+      const statusUrl = `${midtransApiUrl}/${payment.providerId}/status`;
+        
+      const response = await axios.get(statusUrl, {
+        headers: {
+          "Authorization": MIDTRANS_AUTH_HEADER,
+          "Accept": "application/json",
+        },
+      });
+      
+      const paymentDataResponse = response.data;
+      console.log(`Midtrans payment check response for ${payment.providerId}:`, JSON.stringify(paymentDataResponse));
+      
+      const finalStatus = paymentDataResponse.transaction_status || "PENDING";
+      
+      return await updatePaymentAndOrder(payment.providerId!, finalStatus);
+    } catch (err: any) {
+      console.error("Midtrans status check error:", err.response?.data || err.message);
+      return payment;
+    }
   }
 };
