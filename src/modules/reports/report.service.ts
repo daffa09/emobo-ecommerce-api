@@ -39,11 +39,15 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
 
   const totalSales = formattedReports.reduce((sum, r) => sum + Number(r.totalAmount), 0);
   const totalProfit = formattedReports.reduce((sum, r) => sum + Number(r.profit), 0);
+  const totalCustomers = await prisma.user.count({ where: { role: 'CUSTOMER' } });
+  const totalOrders = await prisma.order.count();
 
   return {
     orders: formattedReports,
     totalSales,
     totalProfit: Math.round(totalProfit),
+    totalCustomers,
+    totalOrders,
     period: {
       startDate: startDate || null,
       endDate: endDate || null,

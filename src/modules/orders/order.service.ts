@@ -51,8 +51,28 @@ export const createOrder = async (
   const totalAmount = lineTotal + shippingCost + appFee;
 
   const order = await prisma.$transaction(async (tx: any) => {
+    const today = new Date();
+    const dateStr = today.getDate().toString().padStart(2, '0') + 
+                    (today.getMonth() + 1).toString().padStart(2, '0') + 
+                    today.getFullYear();
+    const prefix = `TR${dateStr}-`;
+    
+    const lastOrder = await tx.order.findFirst({
+      where: { id: { startsWith: prefix } },
+      orderBy: { id: 'desc' }
+    });
+    
+    let seq = 1;
+    if (lastOrder) {
+      const lastSeq = parseInt(lastOrder.id.split('-')[1]);
+      if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+    
+    const customId = `${prefix}${seq.toString().padStart(4, '0')}`;
+
     const o = await tx.order.create({
       data: {
+        id: customId,
         profile: { connect: { id: profileId } },
         total_grand: totalAmount,
         shippingCost,
@@ -140,7 +160,7 @@ export const listAllOrders = async () => {
   return prisma.order.findMany({
     include: { 
       items: { include: { product: true } },
-      profile: { select: { id: true, name: true, phone: true } },
+      profile: { select: { id: true, name: true, phone: true, user: { select: { email: true } } } },
       payment: true
     },
     orderBy: { createdAt: "desc" },
