@@ -1,16 +1,19 @@
 import prisma from "../../prisma";
 import axios from "axios";
 
-const FLIP_IS_PRODUCTION = process.env.FLIP_IS_PRODUCTION === "true";
-const FLIP_SECRET_KEY = process.env.FLIP_SECRET_KEY || "";
-const FLIP_AUTH_HEADER = "Basic " + Buffer.from(FLIP_SECRET_KEY + ":").toString("base64");
+const MIDTRANS_IS_PRODUCTION = process.env.MIDTRANS_IS_PRODUCTION === "true";
+const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
+const MIDTRANS_AUTH_HEADER = "Basic " + Buffer.from(MIDTRANS_SERVER_KEY + ":").toString("base64");
 
-// 1. UPDATE: Gunakan endpoint API v3
-const flipBillsUrl = FLIP_IS_PRODUCTION 
-  ? "https://bigflip.id/api/v2/pwf/bill" 
-  : "https://bigflip.id/big_sandbox_api/v2/pwf/bill";
+const midtransSnapUrl = MIDTRANS_IS_PRODUCTION 
+  ? "https://app.midtrans.com/snap/v1/transactions" 
+  : "https://app.sandbox.midtrans.com/snap/v1/transactions";
 
-export const createFlipPayment = async (orderId: string) => {
+const midtransApiUrl = MIDTRANS_IS_PRODUCTION
+  ? "https://api.midtrans.com/v2"
+  : "https://api.sandbox.midtrans.com/v2";
+
+export const createMidtransPayment = async (orderId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -23,60 +26,48 @@ export const createFlipPayment = async (orderId: string) => {
 
   if (!order) throw new Error("Order not found");
 
-  // 2. FIX LOCALHOST ERROR: Pastikan FRONTEND_URL bukan localhost saat di lempar ke Flip
-  // Solusi: Gunakan Ngrok saat testing lokal, atau pass URL dummy saat masih di localhost
-  const rawFrontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-  const frontendUrl = rawFrontendUrl.includes("localhost") 
-    ? "https://b95b-2404-8000-1004-491d-68ed-8b1a-eb94-1b6.ngrok-free.app" // Ganti dengan URL Ngrok/tunneling kamu
-    : rawFrontendUrl.replace(/\/$/, "");
-    
-  const redirectUrl = `${frontendUrl}/customer/transactions/${orderId}`;
-
   const existing = await prisma.payment.findUnique({ where: { orderId } });
   if (existing && existing.redirectUrl) return existing;
 
-  const payload = new URLSearchParams({
-    title: `Order No ${orderId}`,
-    type: "SINGLE",
-    amount: order.total_grand.toString(),
-    redirect_url: redirectUrl,
-    is_address_required: "0",
-    is_phone_number_required: "0",
-    step: "2", 
-    sender_name: order.profile?.name || "Customer",
-    sender_email: order.profile?.user?.email || "customer@example.com",
-    sender_phone_number: order.phone || "08123456789",
-  });
+  const payload = {
+    transaction_details: {
+      order_id: orderId,
+      gross_amount: Number(order.total_grand),
+    },
+    customer_details: {
+      first_name: order.profile?.name || "Customer",
+      email: order.profile?.user?.email || "customer@example.com",
+      phone: order.phone || "08123456789",
+    },
+  };
 
-  console.log("Flip Payload:", payload.toString());
+  console.log("Midtrans Payload:", JSON.stringify(payload));
 
   try {
-    const response = await axios.post(flipBillsUrl, payload, {
+    const response = await axios.post(midtransSnapUrl, payload, {
       headers: {
-        "Authorization": FLIP_AUTH_HEADER,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": MIDTRANS_AUTH_HEADER,
+        "Content-Type": "application/json",
       },
     });
 
-    const bill = response.data;
+    const snapData = response.data;
     
     const payment = await prisma.payment.upsert({
       where: { orderId },
       update: {
-        provider: "flip",
-        // FYI: Menggunakan .toString() di sini sudah SANGAT TEPAT karena per 10 April 2026, 
-        // Flip akan mengubah link_id menjadi 19 digit yang tidak muat di integer standard JavaScript.
-        providerId: bill.link_id.toString(), 
-        snapToken: "",
-        redirectUrl: bill.link_url,
+        provider: "midtrans",
+        providerId: orderId,
+        snapToken: snapData.token,
+        redirectUrl: snapData.redirect_url,
         amount: order.total_grand,
       },
       create: {
         orderId,
-        provider: "flip",
-        providerId: bill.link_id.toString(),
-        snapToken: "",
-        redirectUrl: bill.link_url,
+        provider: "midtrans",
+        providerId: orderId,
+        snapToken: snapData.token,
+        redirectUrl: snapData.redirect_url,
         amount: order.total_grand,
         status: "PENDING",
       },
@@ -84,8 +75,8 @@ export const createFlipPayment = async (orderId: string) => {
 
     return payment;
   } catch (error: any) {
-    console.error("Flip Create Bill Error:", error.response?.data || error.message);
-    throw new Error("Failed to create Flip payment");
+    console.error("Midtrans Create Transaction Error:", error.response?.data || error.message);
+    throw new Error("Failed to create Midtrans payment");
   }
 };
 
@@ -107,11 +98,13 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
 
   let paymentStatus: "PAID" | "FAILED" | "PENDING" = "PENDING";
 
-  if (transactionStatus === "SUCCESSFUL") {
+  if (transactionStatus === "settlement" || transactionStatus === "capture") {
     paymentStatus = "PAID";
   } else if (
-    transactionStatus === "CANCELLED" ||
-    transactionStatus === "FAILED"
+    transactionStatus === "deny" ||
+    transactionStatus === "cancel" ||
+    transactionStatus === "expire" ||
+    transactionStatus === "failure"
   ) {
     paymentStatus = "FAILED";
   } else {
@@ -161,8 +154,8 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
   return updatedPayment;
 };
 
-export const handleFlipCallback = async (data: any) => {
-  console.log("Handling Flip Notification (Webhook)");
+export const handleMidtransCallback = async (data: any) => {
+  console.log("Handling Midtrans Notification (Webhook)");
   
   let parsedData = data;
   if (typeof data === "string") {
@@ -171,39 +164,24 @@ export const handleFlipCallback = async (data: any) => {
     } catch (e) {
       console.log("Could not parse string data as JSON");
     }
-  } else if (data.data) {
-    try {
-      parsedData = JSON.parse(data.data);
-    } catch (e) {
-      parsedData = data.data; // Try using data object directly
-    }
   }
 
-  // Antisipasi jika Flip mengirimkan data dalam bentuk Array (sering terjadi di webhook Bill API v2)
-  if (Array.isArray(parsedData)) {
-    parsedData = parsedData[0];
-  }
-
-  // Mengambil ID dari payload (Bisa bernama bill_link_id, link_id, atau id)
-  const providerId = parsedData.bill_link_id?.toString() || parsedData.link_id?.toString() || parsedData.id?.toString();
+  const providerId = parsedData.order_id?.toString();
 
   if (!providerId) {
-    console.error("Payload Flip tidak terbaca:", parsedData);
-    throw new Error("Invalid Flip callback payload");
+    console.error("Midtrans payload invalid:", parsedData);
+    throw new Error("Invalid Midtrans callback payload");
   }
 
-  console.log(`[PAYMENT DEBUG] Webhook trigger received for providerId ${providerId}`);
+  console.log(`[PAYMENT DEBUG] Webhook trigger received for order_id ${providerId}`);
 
   const payment = await prisma.payment.findFirst({ where: { providerId } });
   
   if (!payment) {
-    console.error(`[PAYMENT DEBUG] Payment not found in database for providerId: ${providerId}`);
-    return null; // Return null agar Flip tidak terus-terusan retry webhook
+    console.error(`[PAYMENT DEBUG] Payment not found in database for order_id: ${providerId}`);
+    return null; 
   }
 
-  // BEST PRACTICE: 
-  // Alih-alih mengandalkan status teks dari webhook, kita gunakan webhook HANYA sebagai pelatuk.
-  // Panggil fungsi verifyPayment agar backend cross-check langsung ke server Flip untuk status yang paling update.
   console.log(`[PAYMENT DEBUG] Verifying payment for Order ID ${payment.orderId} from Webhook trigger...`);
   return verifyPayment(payment.orderId);
 };
@@ -215,60 +193,24 @@ export const verifyPayment = async (orderId: string) => {
 
   if (payment.status === "PAID") return payment;
 
-  // If status is not PAID, check with Flip directly to see if any successful payment exists
   try {
-    const paymentUrl = FLIP_IS_PRODUCTION 
-      ? "https://bigflip.id/api/v2/pwf/payment" 
-      : "https://bigflip.id/big_sandbox_api/v2/pwf/payment";
+    const statusUrl = `${midtransApiUrl}/${payment.providerId}/status`;
       
-    const response = await axios.get(paymentUrl, {
-      params: { bill_link_id: payment.providerId },
+    const response = await axios.get(statusUrl, {
       headers: {
-        "Authorization": FLIP_AUTH_HEADER,
+        "Authorization": MIDTRANS_AUTH_HEADER,
+        "Accept": "application/json",
       },
     });
     
     const paymentDataResponse = response.data;
-    console.log(`Flip payment check response for ${payment.providerId}:`, JSON.stringify(paymentDataResponse));
+    console.log(`Midtrans payment check response for ${payment.providerId}:`, JSON.stringify(paymentDataResponse));
     
-    // Default to PENDING
-    let finalStatus = "PENDING";
-    
-    if (paymentDataResponse && paymentDataResponse.data && Array.isArray(paymentDataResponse.data)) {
-      // Check if there is any successful payment
-      const hasSuccessful = paymentDataResponse.data.some((p: any) => p.status === "SUCCESSFUL");
-      if (hasSuccessful) {
-        finalStatus = "SUCCESSFUL";
-      } else {
-         // If no successful payments but we know it's not active anymore or failed
-         // We might decide it's failed, but letting it be PENDING unless we query the bill again.
-         // Let's also check if there are cancelled/failed payments
-         const hasFailed = paymentDataResponse.data.some((p: any) => p.status === "FAILED" || p.status === "CANCELLED");
-         if (hasFailed) finalStatus = "FAILED";
-      }
-    }
-    
-    // If we didn't find any successful payments, let's also check the bill status 
-    // to see if it's INACTIVE (expired)
-    if (finalStatus === "PENDING") {
-       const billResponse = await axios.get(flipBillsUrl, {
-         params: { id: payment.providerId },
-         headers: { "Authorization": FLIP_AUTH_HEADER },
-       });
-       const statusResponse = billResponse.data;
-       const billData = Array.isArray(statusResponse) ? statusResponse[0] : statusResponse;
-       
-       if (billData && billData.status === "INACTIVE") {
-         finalStatus = "FAILED"; // Expired/Cancelled
-       }
-    }
+    const finalStatus = paymentDataResponse.transaction_status || "PENDING";
     
     return await updatePaymentAndOrder(payment.providerId!, finalStatus);
   } catch (err: any) {
-    console.error("Flip status check error:", err.response?.data || err.message);
+    console.error("Midtrans status check error:", err.response?.data || err.message);
     return payment;
   }
 };
-
-
-

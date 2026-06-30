@@ -6,21 +6,21 @@ import prisma from "../../prisma";
 export const createPayment = async (req: Request, res: Response) => {
   const orderId = req.params.orderId;
   try {
-    const payment = await service.createFlipPayment(orderId);
+    const payment = await service.createMidtransPayment(orderId);
     return sendResponse(res, 201, "payment created", payment);
   } catch (err: any) {
-    console.error("Flip create error:", err);
+    console.error("Midtrans create error:", err);
     return sendResponse(res, 400, err.message);
   }
 };
 
-// webhook endpoint for Flip
+// webhook endpoint for Midtrans
 export const webhook = async (req: Request, res: Response) => {
   try {
-    await service.handleFlipCallback(req.body);
+    await service.handleMidtransCallback(req.body);
     return res.status(200).send("OK");
   } catch (err) {
-    console.error("Flip webhook error:", err);
+    console.error("Midtrans webhook error:", err);
     return res.status(400).send("ERROR");
   }
 };
@@ -38,7 +38,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
     const payment = await service.verifyPayment(orderId);
     return sendResponse(res, 200, "payment verified", payment);
   } catch (err: any) {
-    console.error("Flip verify error:", err);
+    console.error("Midtrans verify error:", err);
     return sendResponse(res, 400, err.message);
   }
 };
