@@ -51,7 +51,7 @@ const createFlipPayment = async (orderId: string) => {
     amount: order.total_grand.toString(),
     type: "SINGLE",
     expired_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().replace("T", " ").substring(0, 16),
-    redirect_url: `${frontendUrl}/account/orders`,
+    redirect_url: `${frontendUrl}/customer/transactions/${orderId}`,
     is_address_required: "0",
     is_phone_number_required: "0",
     sender_name: order.profile?.name || "Customer",
@@ -126,7 +126,7 @@ const createMidtransPayment = async (orderId: string) => {
       phone: order.phone || "08123456789",
     },
     callbacks: {
-      finish: `${frontendUrl}/account/orders`
+      finish: `${frontendUrl}/customer/transactions/${orderId}`
     }
   };
 
