@@ -45,21 +45,21 @@ DROP TABLE IF EXISTS "profiles" CASCADE;
 -- Create tables
 
 CREATE TABLE "brands" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "brand_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" VARCHAR(255) NOT NULL UNIQUE,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL
 );
 
 CREATE TABLE "conditions" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "condition_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" VARCHAR(255) NOT NULL UNIQUE,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL
 );
 
 CREATE TABLE "profiles" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "profile_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" VARCHAR(150) NOT NULL,
     "phone" VARCHAR(25) NOT NULL,
     "image" TEXT,
@@ -72,7 +72,7 @@ CREATE TABLE "profiles" (
 );
 
 CREATE TABLE "users" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "email" VARCHAR(50) NOT NULL UNIQUE,
     "password_hash" VARCHAR(255) NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
@@ -81,15 +81,15 @@ CREATE TABLE "users" (
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
     "profile_id" UUID UNIQUE,
-    CONSTRAINT "users_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("id") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT "users_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("profile_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 CREATE TABLE "registers" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "register_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "is_email_verified" BOOLEAN NOT NULL DEFAULT false,
     "verification_token" VARCHAR(255) UNIQUE,
     "user_id" UUID NOT NULL UNIQUE,
-    CONSTRAINT "registers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "registers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "refresh_tokens" (
@@ -99,11 +99,11 @@ CREATE TABLE "refresh_tokens" (
     "revoked" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expires_at" TIMESTAMP NOT NULL,
-    CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "products" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "product_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "sku" VARCHAR(100) NOT NULL UNIQUE,
     "serial_number" VARCHAR(100) UNIQUE,
     "name" VARCHAR(255) NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE "products" (
     "brand_id" UUID NOT NULL,
     "category" VARCHAR(100) NOT NULL DEFAULT 'General',
     "description" TEXT,
-    "images" TEXT[] DEFAULT '{}',
+    "images" JSONB NOT NULL DEFAULT '[]'::jsonb,
     "specifications" JSONB NOT NULL DEFAULT '{}',
     "condition_id" UUID NOT NULL,
     "warranty" VARCHAR(100),
@@ -120,23 +120,23 @@ CREATE TABLE "products" (
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
     "deleted_at" TIMESTAMP,
-    CONSTRAINT "products_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "brands"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "products_condition_id_fkey" FOREIGN KEY ("condition_id") REFERENCES "conditions"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "products_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "brands"("brand_id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "products_condition_id_fkey" FOREIGN KEY ("condition_id") REFERENCES "conditions"("condition_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE TABLE "monitor_stock" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "monitor_stock_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "product_id" UUID NOT NULL UNIQUE,
     "current_stock" INTEGER NOT NULL,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "monitor_stock_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "monitor_stock_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 
 
 CREATE TABLE "orders" (
-    "id" VARCHAR(100) NOT NULL PRIMARY KEY,
+    "order_id" VARCHAR(100) NOT NULL PRIMARY KEY,
     "profile_id" UUID NOT NULL,
     "total_grand" DECIMAL NOT NULL,
     "shipping_cost" DECIMAL NOT NULL DEFAULT 0,
@@ -152,22 +152,22 @@ CREATE TABLE "orders" (
     "app_fee" DECIMAL NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
-    CONSTRAINT "orders_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "orders_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("profile_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE TABLE "order_item" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "order_item_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "order_id" VARCHAR(100) NOT NULL,
     "product_id" UUID NOT NULL,
     "qty" INTEGER NOT NULL,
     "unit_price" DECIMAL NOT NULL,
     "total_price" DECIMAL NOT NULL,
-    CONSTRAINT "order_item_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "order_item_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("order_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE TABLE "payments" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "payment_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "order_id" VARCHAR(100) NOT NULL UNIQUE,
     "provider" VARCHAR(50) NOT NULL,
     "provider_id" VARCHAR(100) NOT NULL,
@@ -178,24 +178,24 @@ CREATE TABLE "payments" (
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
     "paid_at" TIMESTAMP,
-    CONSTRAINT "payments_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "payments_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("order_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "reviews" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "review_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "order_id" VARCHAR(100) NOT NULL,
     "product_id" UUID NOT NULL,
     "profile_id" UUID NOT NULL,
     "rating" INTEGER NOT NULL,
     "comment" TEXT,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "reviews_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "reviews_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "reviews_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "reviews_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("order_id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "reviews_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "reviews_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("profile_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE TABLE "notifications" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "notification_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,
     "title" VARCHAR(255) NOT NULL,
     "message" TEXT NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE "notifications" (
     "is_read" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
-    CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "contact_messages" (
@@ -217,7 +217,7 @@ CREATE TABLE "contact_messages" (
 );
 
 CREATE TABLE "purchase_orders" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "purchase_order_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "receipt_url" VARCHAR(255) NOT NULL,
     "total_items_on_receipt" INTEGER NOT NULL,
     "notes" TEXT,
@@ -226,12 +226,12 @@ CREATE TABLE "purchase_orders" (
 );
 
 CREATE TABLE "purchase_order_item" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "purchase_order_item_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "purchase_order_id" UUID NOT NULL,
     "product_id" UUID NOT NULL,
     "qty" INTEGER NOT NULL,
-    CONSTRAINT "purchase_order_item_purchase_order_id_fkey" FOREIGN KEY ("purchase_order_id") REFERENCES "purchase_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "purchase_order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "purchase_order_item_purchase_order_id_fkey" FOREIGN KEY ("purchase_order_id") REFERENCES "purchase_orders"("purchase_order_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "purchase_order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- Default Admin Seed
@@ -244,7 +244,7 @@ WITH inserted_profile AS (
         'Admin Emobo', 
         '-'
     )
-    RETURNING id
+    RETURNING profile_id
 ), inserted_user AS (
     INSERT INTO "users" (
         "email", 
@@ -260,9 +260,9 @@ WITH inserted_profile AS (
         'ADMIN', 
         CURRENT_TIMESTAMP, 
         CURRENT_TIMESTAMP,
-        id
+        profile_id
     FROM inserted_profile
-    RETURNING id
+    RETURNING user_id
 )
 INSERT INTO "registers" (
     "is_email_verified",
@@ -270,7 +270,7 @@ INSERT INTO "registers" (
 )
 SELECT 
     true, 
-    id
+    user_id
 FROM inserted_user;
 
 -- Default Conditions Seed
@@ -279,7 +279,7 @@ INSERT INTO "conditions" ("name", "updated_at") VALUES ('New', CURRENT_TIMESTAMP
 
 CREATE OR REPLACE VIEW "monitor_stock_view" AS
 SELECT 
-    p.id AS product_id,
+    p.product_id AS product_id,
     COALESCE(po.qty_in, 0) AS qty_in,
     COALESCE(o.qty_out, 0) AS qty_out,
     (COALESCE(po.qty_in, 0) - COALESCE(o.qty_out, 0))::INTEGER AS current_stock
@@ -288,19 +288,19 @@ LEFT JOIN (
     SELECT product_id, SUM(qty)::INTEGER AS qty_in 
     FROM "purchase_order_item" 
     GROUP BY product_id
-) po ON p.id = po.product_id
+) po ON p.product_id = po.product_id
 LEFT JOIN (
     SELECT oi.product_id, SUM(oi.qty)::INTEGER AS qty_out 
     FROM "order_item" oi
-    JOIN "orders" ord ON oi.order_id = ord.id
+    JOIN "orders" ord ON oi.order_id = ord.order_id
     WHERE ord.status != 'CANCELLED'
     GROUP BY oi.product_id
-) o ON p.id = o.product_id;
+) o ON p.product_id = o.product_id;
 
 
 CREATE OR REPLACE VIEW "stock_report_view" AS
 SELECT 
-    p.id AS product_id,
+    p.product_id AS product_id,
     COALESCE(po.qty_in, 0) AS qty_in,
     COALESCE(o.qty_out, 0) AS qty_out
 FROM "products" p
@@ -308,12 +308,11 @@ LEFT JOIN (
     SELECT product_id, SUM(qty)::INTEGER AS qty_in 
     FROM "purchase_order_item" 
     GROUP BY product_id
-) po ON p.id = po.product_id
+) po ON p.product_id = po.product_id
 LEFT JOIN (
     SELECT oi.product_id, SUM(oi.qty)::INTEGER AS qty_out 
     FROM "order_item" oi
-    JOIN "orders" ord ON oi.order_id = ord.id
+    JOIN "orders" ord ON oi.order_id = ord.order_id
     WHERE ord.status != 'CANCELLED'
     GROUP BY oi.product_id
-) o ON p.id = o.product_id;
-
+) o ON p.product_id = o.product_id;

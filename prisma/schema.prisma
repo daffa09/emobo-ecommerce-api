@@ -155,7 +155,7 @@ model Product {
 }
 
 model Order {
-  id                 String      @id @default(uuid()) @db.Uuid @map("order_id")
+  id                 String      @id @db.VarChar(100) @map("order_id")
   profileId          String      @db.Uuid @map("profile_id")
   profile            Profile     @relation(fields: [profileId], references: [id])
   total_grand        Decimal     @db.Decimal
@@ -182,7 +182,7 @@ model Order {
 
 model OrderItem {
   id          String  @id @default(uuid()) @db.Uuid @map("order_item_id")
-  orderId     String  @db.Uuid @map("order_id")
+  orderId     String  @db.VarChar(100) @map("order_id")
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId   String  @db.Uuid @map("product_id")
   product     Product @relation(fields: [productId], references: [id])
@@ -195,7 +195,7 @@ model OrderItem {
 
 model Payment {
   id          String        @id @default(uuid()) @db.Uuid @map("payment_id")
-  orderId     String        @unique @db.Uuid @map("order_id")
+  orderId     String        @unique @db.VarChar(100) @map("order_id")
   order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   provider    String        @db.VarChar(100)
   providerId  String?       @map("provider_id") @db.VarChar(255)
@@ -212,7 +212,7 @@ model Payment {
 
 model Review {
   id        String   @id @default(uuid()) @db.Uuid @map("review_id")
-  orderId   String   @db.Uuid @map("order_id")
+  orderId   String   @db.VarChar(100) @map("order_id")
   order     Order    @relation(fields: [orderId], references: [id])
   productId String   @db.Uuid @map("product_id")
   product   Product  @relation(fields: [productId], references: [id])
