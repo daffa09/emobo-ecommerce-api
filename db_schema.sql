@@ -38,6 +38,7 @@ DROP TABLE IF EXISTS "order_item" CASCADE;
 DROP TABLE IF EXISTS "orders" CASCADE;
 DROP TABLE IF EXISTS "products" CASCADE;
 DROP TABLE IF EXISTS "refresh_tokens" CASCADE;
+DROP TABLE IF EXISTS "registers" CASCADE;
 DROP TABLE IF EXISTS "users" CASCADE;
 DROP TABLE IF EXISTS "profiles" CASCADE;
 
@@ -75,14 +76,20 @@ CREATE TABLE "users" (
     "email" VARCHAR(50) NOT NULL UNIQUE,
     "password_hash" VARCHAR(255) NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
-    "is_email_verified" BOOLEAN NOT NULL DEFAULT false,
-    "verification_token" VARCHAR(255) UNIQUE,
     "reset_password_token" VARCHAR(255) UNIQUE,
     "reset_password_expires" TIMESTAMP,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL,
     "profile_id" UUID UNIQUE,
     CONSTRAINT "users_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE "registers" (
+    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "is_email_verified" BOOLEAN NOT NULL DEFAULT false,
+    "verification_token" VARCHAR(255) UNIQUE,
+    "user_id" UUID NOT NULL UNIQUE,
+    CONSTRAINT "registers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "refresh_tokens" (
@@ -238,25 +245,33 @@ WITH inserted_profile AS (
         '-'
     )
     RETURNING id
+), inserted_user AS (
+    INSERT INTO "users" (
+        "email", 
+        "password_hash", 
+        "role", 
+        "created_at", 
+        "updated_at",
+        "profile_id"
+    )
+    SELECT 
+        'admin@emobo.com', 
+        '$2b$10$xC/hWtuN788gj5saGqEsGeqwqaeEnnyEV3R3p9SfoKn4cEL5Os.we', -- Hash dari 'password123'
+        'ADMIN', 
+        CURRENT_TIMESTAMP, 
+        CURRENT_TIMESTAMP,
+        id
+    FROM inserted_profile
+    RETURNING id
 )
-INSERT INTO "users" (
-    "email", 
-    "password_hash", 
-    "role", 
-    "is_email_verified", 
-    "created_at", 
-    "updated_at",
-    "profile_id"
+INSERT INTO "registers" (
+    "is_email_verified",
+    "user_id"
 )
 SELECT 
-    'admin@emobo.com', 
-    '$2b$10$xC/hWtuN788gj5saGqEsGeqwqaeEnnyEV3R3p9SfoKn4cEL5Os.we', -- Hash dari 'password123'
-    'ADMIN', 
     true, 
-    CURRENT_TIMESTAMP, 
-    CURRENT_TIMESTAMP,
     id
-FROM inserted_profile;
+FROM inserted_user;
 
 -- Default Conditions Seed
 INSERT INTO "conditions" ("name", "updated_at") VALUES ('New', CURRENT_TIMESTAMP), ('Second', CURRENT_TIMESTAMP);

@@ -14,8 +14,12 @@ export const registerUser = async (email: string, password: string, name?: strin
     data: { 
       email, 
       passwordHash: hash, 
-      isEmailVerified: false,
-      verificationToken,
+      register: {
+        create: {
+          isEmailVerified: false,
+          verificationToken,
+        }
+      },
       profile: {
         create: {
           name: name || "User",
@@ -23,7 +27,7 @@ export const registerUser = async (email: string, password: string, name?: strin
         }
       }
     },
-    include: { profile: true }
+    include: { profile: true, register: true }
   });
 
   // Notify admins when a new customer registers
@@ -51,23 +55,23 @@ export const registerUser = async (email: string, password: string, name?: strin
 export const findUserByEmail = async (email: string) => {
   return prisma.user.findUnique({ 
     where: { email },
-    include: { profile: true }
+    include: { profile: true, register: true }
   });
 };
 
 export const verifyEmailService = async (token: string) => {
-  const user = await prisma.user.findUnique({ where: { verificationToken: token } });
-  if (!user) throw new Error("Invalid or expired verification token");
+  const register = await prisma.register.findUnique({ where: { verificationToken: token } });
+  if (!register) throw new Error("Invalid or expired verification token");
 
-  await prisma.user.update({
-    where: { id: user.id },
+  await prisma.register.update({
+    where: { id: register.id },
     data: { 
       isEmailVerified: true, 
       verificationToken: null 
     },
   });
 
-  return user;
+  return prisma.user.findUnique({ where: { id: register.userId } });
 };
 
 export const createSessionTokens = async (user: any) => {

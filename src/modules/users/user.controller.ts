@@ -12,7 +12,9 @@ export const getProfile = async (req: Request, res: Response) => {
       id: true,
       email: true,
       role: true,
-      isEmailVerified: true,
+      register: {
+        select: { isEmailVerified: true }
+      },
       createdAt: true,
       profile: {
         select: {
@@ -36,7 +38,7 @@ export const getProfile = async (req: Request, res: Response) => {
     id: user.id,
     email: user.email,
     role: user.role,
-    isEmailVerified: user.isEmailVerified,
+    isEmailVerified: user.register?.isEmailVerified || false,
     createdAt: user.createdAt,
     name: user.profile?.name,
     phone: user.profile?.phone,

@@ -19,7 +19,7 @@ export const login = async (req: Request, res: Response) => {
   const user = await findUserByEmail(email);
   if (!user) return sendResponse(res, 400, "Invalid credentials");
 
-  if (!user.isEmailVerified) {
+  if (!user.register?.isEmailVerified) {
     return sendResponse(res, 403, "Email not verified, please check your email");
   }
 

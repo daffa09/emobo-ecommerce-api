@@ -15,37 +15,47 @@ enum Role {
 }
 
 model User {
-  id                   String    @id @default(uuid())
-  email                String    @unique
-  passwordHash         String    @map("password_hash")
+  id                   String    @id @default(uuid()) @db.Uuid @map("user_id")
+  email                String    @unique @db.VarChar(50)
+  passwordHash         String    @map("password_hash") @db.VarChar(255)
   role                 Role      @default(CUSTOMER)
-  isEmailVerified      Boolean   @default(false) @map("is_email_verified")
-  verificationToken    String?   @unique @map("verification_token")
-  resetPasswordToken   String?   @unique @map("reset_password_token")
+  resetPasswordToken   String?   @unique @map("reset_password_token") @db.VarChar(255)
   resetPasswordExpires DateTime? @map("reset_password_expires")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  profileId String?  @unique @map("profile_id")
+  profileId String?  @unique @db.Uuid @map("profile_id")
   profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
+  register      Register?
   refreshTokens RefreshToken[]
   notifications Notification[]
 
   @@map("users")
 }
 
+model Register {
+  id                String  @id @default(uuid()) @db.Uuid @map("register_id")
+  isEmailVerified   Boolean @default(false) @map("is_email_verified")
+  verificationToken String? @unique @map("verification_token") @db.VarChar(255)
+  
+  userId            String  @unique @db.Uuid @map("user_id")
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("registers")
+}
+
 model Profile {
-  id           String  @id @default(uuid())
-  name         String
-  phone        String
-  image        String?
-  address      String?
-  addressNotes String? @map("address_notes")
-  provinceId   String? @map("province_id")
-  cityId       String? @map("city_id")
-  latitude     Float?
-  longitude    Float?
+  id           String  @id @default(uuid()) @db.Uuid @map("profile_id")
+  name         String  @db.VarChar(150)
+  phone        String  @db.VarChar(25)
+  image        String? @db.Text
+  address      String? @db.VarChar(255)
+  addressNotes String? @map("address_notes") @db.VarChar(255)
+  provinceId   String? @db.Uuid @map("province_id")
+  cityId       String? @db.Uuid @map("city_id")
+  latitude     Float?  @db.DoublePrecision
+  longitude    Float?  @db.DoublePrecision
 
   user User?
 
@@ -68,21 +78,23 @@ model RefreshToken {
 }
 
 model Brand {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  products  Product[]
+  id        String    @id @default(uuid()) @db.Uuid @map("brand_id")
+  name      String    @unique @db.VarChar(100)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
+
+  products  Product[]
 
   @@map("brands")
 }
 
 model Condition {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  products  Product[]
+  id        String    @id @default(uuid()) @db.Uuid @map("condition_id")
+  name      String    @unique @db.VarChar(50)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
+
+  products  Product[]
 
   @@map("conditions")
 }
@@ -93,8 +105,8 @@ enum MovementType {
 }
 
 model MonitorStock {
-  id           String   @id @default(uuid())
-  productId    String   @unique @map("product_id")
+  id           String   @id @default(uuid()) @db.Uuid @map("monitor_stock_id")
+  productId    String   @unique @db.Uuid @map("product_id")
   product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   currentStock Int      @map("current_stock")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -113,25 +125,26 @@ view StockReportView {
 }
 
 model Product {
-  id                 String              @id @default(uuid())
-  sku                String              @unique
-  serialNumber       String?             @unique @map("serial_number")
-  name               String
-  price              Decimal
-  buyPrice           Decimal             @default(0) @map("buy_price")
-  brandId            String              @map("brand_id")
+  id                 String              @id @default(uuid()) @db.Uuid @map("product_id")
+  sku                String              @unique @db.VarChar(100)
+  serialNumber       String?             @unique @map("serial_number") @db.VarChar(100)
+  name               String              @db.VarChar(255)
+  price              Decimal             @db.Decimal
+  buyPrice           Decimal             @default(0) @map("buy_price") @db.Decimal
+  brandId            String              @db.Uuid @map("brand_id")
   brand              Brand               @relation(fields: [brandId], references: [id])
-  category           String              @default("General")
-  description        String?
-  images             String[]            @default([])
+  category           String              @default("General") @db.VarChar(100)
+  description        String?             @db.Text
+  images             Json                @default("[]")
   specifications     Json                @default("{}")
-  conditionId        String              @map("condition_id")
+  conditionId        String              @db.Uuid @map("condition_id")
   condition          Condition           @relation(fields: [conditionId], references: [id])
-  warranty           String?
+  warranty           String?             @db.VarChar(100)
   weight             Int                 @default(1500)
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   deletedAt          DateTime?           @map("deleted_at")
+  
   orderItems         OrderItem[]
   reviews            Review[]
   purchaseOrderItems PurchaseOrderItem[]
@@ -142,52 +155,53 @@ model Product {
 }
 
 model Order {
-  id                 String      @id @default(uuid())
-  profileId          String      @map("profile_id")
+  id                 String      @id @default(uuid()) @db.Uuid @map("order_id")
+  profileId          String      @db.Uuid @map("profile_id")
   profile            Profile     @relation(fields: [profileId], references: [id])
-  total_grand        Decimal
-  shippingCost       Decimal     @default(0) @map("shipping_cost")
-  shippingService    String?     @map("shipping_service")
+  total_grand        Decimal     @db.Decimal
+  shippingCost       Decimal     @default(0) @map("shipping_cost") @db.Decimal
+  shippingService    String?     @map("shipping_service") @db.VarChar(100)
   status             OrderStatus @default(PENDING)
   shippingAddr       Json        @map("shipping_addr")
-  phone              String
+  phone              String      @db.VarChar(25)
   createdAt          DateTime    @default(now()) @map("created_at")
   updatedAt          DateTime    @updatedAt @map("updated_at")
-  items              OrderItem[]
-  payment            Payment?
-  reviews            Review[]
-  trackingNo         String?     @map("tracking_no")
+  trackingNo         String?     @map("tracking_no") @db.VarChar(100)
   estimatedDays      Int?        @map("estimated_days")
   shippedAt          DateTime?   @map("shipped_at")
   deliveryNotifiedAt DateTime?   @map("delivery_notified_at")
-  taxAmount          Decimal     @default(0) @map("tax_amount")
-  appFee             Decimal     @default(0) @map("app_fee")
+  taxAmount          Decimal     @default(0) @map("tax_amount") @db.Decimal
+  appFee             Decimal     @default(0) @map("app_fee") @db.Decimal
+
+  items              OrderItem[]
+  payment            Payment?
+  reviews            Review[]
 
   @@map("orders")
 }
 
 model OrderItem {
-  id          String  @id @default(uuid())
-  orderId     String  @map("order_id")
+  id          String  @id @default(uuid()) @db.Uuid @map("order_item_id")
+  orderId     String  @db.Uuid @map("order_id")
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String  @map("product_id")
+  productId   String  @db.Uuid @map("product_id")
   product     Product @relation(fields: [productId], references: [id])
   qty         Int
-  unitPrice   Decimal @map("unit_price")
-  total_price Decimal
+  unitPrice   Decimal @map("unit_price") @db.Decimal
+  total_price Decimal @db.Decimal
 
   @@map("order_item")
 }
 
 model Payment {
-  id          String        @id @default(uuid())
-  orderId     String        @unique @map("order_id")
+  id          String        @id @default(uuid()) @db.Uuid @map("payment_id")
+  orderId     String        @unique @db.Uuid @map("order_id")
   order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  provider    String
-  providerId  String?       @map("provider_id")
-  snapToken   String?       @map("snap_token")
-  redirectUrl String?       @map("redirect_url")
-  amount      Decimal
+  provider    String        @db.VarChar(100)
+  providerId  String?       @map("provider_id") @db.VarChar(255)
+  snapToken   String?       @map("snap_token") @db.VarChar(255)
+  redirectUrl String?       @map("redirect_url") @db.VarChar(255)
+  amount      Decimal       @db.Decimal
   status      PaymentStatus @default(PENDING)
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -197,15 +211,15 @@ model Payment {
 }
 
 model Review {
-  id        String   @id @default(uuid())
-  orderId   String   @map("order_id")
+  id        String   @id @default(uuid()) @db.Uuid @map("review_id")
+  orderId   String   @db.Uuid @map("order_id")
   order     Order    @relation(fields: [orderId], references: [id])
-  productId String   @map("product_id")
+  productId String   @db.Uuid @map("product_id")
   product   Product  @relation(fields: [productId], references: [id])
-  profileId String   @map("profile_id")
+  profileId String   @db.Uuid @map("profile_id")
   profile   Profile  @relation(fields: [profileId], references: [id])
   rating    Int
-  comment   String?
+  comment   String?  @db.Text
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("reviews")
@@ -228,12 +242,12 @@ enum PaymentStatus {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
+  id        String   @id @default(uuid()) @db.Uuid @map("notification_id")
+  userId    String   @db.Uuid @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String
-  message   String
-  type      String
+  title     String   @db.VarChar(255)
+  message   String   @db.Text
+  type      String   @db.VarChar(50)
   isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -254,26 +268,25 @@ model ContactMessage {
 }
 
 model PurchaseOrder {
-  id                  String              @id @default(uuid())
-  receiptUrl          String              @map("receipt_url")
+  id                  String              @id @default(uuid()) @db.Uuid @map("purchase_order_id")
+  receiptUrl          String              @map("receipt_url") @db.VarChar(255)
   totalItemsOnReceipt Int                 @map("total_items_on_receipt")
-  notes               String?
-  items               PurchaseOrderItem[]
+  notes               String?             @db.Text
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
+  
+  items               PurchaseOrderItem[]
 
   @@map("purchase_orders")
 }
 
 model PurchaseOrderItem {
-  id              String        @id @default(uuid())
-  purchaseOrderId String        @map("purchase_order_id")
+  id              String        @id @default(uuid()) @db.Uuid @map("purchase_order_item_id")
+  purchaseOrderId String        @db.Uuid @map("purchase_order_id")
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  productId       String        @map("product_id")
+  productId       String        @db.Uuid @map("product_id")
   product         Product       @relation(fields: [productId], references: [id])
   qty             Int
 
   @@map("purchase_order_item")
 }
-
-
