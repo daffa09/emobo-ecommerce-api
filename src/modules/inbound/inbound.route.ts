@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as poc from "./purchase-order.controller";
+import * as poc from "./inbound.controller";
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { adminOnly } from "../../middleware/role.middleware";
 

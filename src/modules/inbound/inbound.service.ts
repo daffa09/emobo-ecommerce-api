@@ -24,7 +24,7 @@ export const createinboundTransaction = async (data: inboundTransactionData) => 
 
     // 2. Create Items and update stock
     for (const item of data.items) {
-      await tx.inboundTransactionItem.create({
+      await tx.inboundItem.create({
         data: {
           inboundTransactionId: newPo.id,
           productId: item.productId,
