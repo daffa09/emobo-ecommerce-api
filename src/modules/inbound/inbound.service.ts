@@ -1,20 +1,20 @@
 import prisma from "../../prisma";
 
-export interface PurchaseOrderItemData {
+export interface inboundTransactionItemData {
   productId: string;
   qty: number;
 }
-export interface PurchaseOrderData {
+export interface inboundTransactionData {
   receiptUrl: string;
   totalItemsOnReceipt: number;
   notes?: string;
-  items: PurchaseOrderItemData[];
+  items: inboundTransactionItemData[];
 }
 
-export const createPurchaseOrder = async (data: PurchaseOrderData) => {
+export const createinboundTransaction = async (data: inboundTransactionData) => {
   return prisma.$transaction(async (tx) => {
-    // 1. Create Purchase Order
-    const newPo = await tx.purchaseOrder.create({
+    // 1. Create Inbound Transaction
+    const newPo = await tx.inboundTransaction.create({
       data: {
         receiptUrl: data.receiptUrl,
         totalItemsOnReceipt: data.totalItemsOnReceipt,
@@ -24,9 +24,9 @@ export const createPurchaseOrder = async (data: PurchaseOrderData) => {
 
     // 2. Create Items and update stock
     for (const item of data.items) {
-      await tx.purchaseOrderItem.create({
+      await tx.inboundTransactionItem.create({
         data: {
-          purchaseOrderId: newPo.id,
+          inboundTransactionId: newPo.id,
           productId: item.productId,
           qty: item.qty,
         },
@@ -38,15 +38,15 @@ export const createPurchaseOrder = async (data: PurchaseOrderData) => {
       });
     }
 
-    return await tx.purchaseOrder.findUnique({
+    return await tx.inboundTransaction.findUnique({
       where: { id: newPo.id },
       include: { items: true },
     });
   });
 };
 
-export const listPurchaseOrders = async () => {
-  return prisma.purchaseOrder.findMany({
+export const listinboundTransactions = async () => {
+  return prisma.inboundTransaction.findMany({
     include: {
       items: {
         include: {
@@ -67,8 +67,8 @@ export const listPurchaseOrders = async () => {
   });
 };
 
-export const getPurchaseOrderById = async (id: string) => {
-  return prisma.purchaseOrder.findUnique({
+export const getinboundTransactionById = async (id: string) => {
+  return prisma.inboundTransaction.findUnique({
     where: { id },
     include: {
       items: {

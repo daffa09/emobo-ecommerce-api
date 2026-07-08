@@ -147,7 +147,7 @@ model Product {
   
   orderItems         OrderItem[]
   reviews            Review[]
-  purchaseOrderItems PurchaseOrderItem[]
+  inboundItems       InboundItem[]
   monitorStock       MonitorStock?
   stockReport        StockReportView?
 
@@ -267,26 +267,26 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
-model PurchaseOrder {
-  id                  String              @id @default(uuid()) @db.Uuid @map("purchase_order_id")
-  receiptUrl          String              @map("receipt_url") @db.VarChar(255)
-  totalItemsOnReceipt Int                 @map("total_items_on_receipt")
-  notes               String?             @db.Text
-  createdAt           DateTime            @default(now()) @map("created_at")
-  updatedAt           DateTime            @updatedAt @map("updated_at")
+model InboundTransaction {
+  id                  String        @id @default(uuid()) @db.Uuid @map("inbound_transaction_id")
+  receiptUrl          String        @map("receipt_url") @db.VarChar(255)
+  totalItemsOnReceipt Int           @map("total_items_on_receipt")
+  notes               String?       @db.Text
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
   
-  items               PurchaseOrderItem[]
+  items               InboundItem[]
 
-  @@map("purchase_orders")
+  @@map("inbound_transactions")
 }
 
-model PurchaseOrderItem {
-  id              String        @id @default(uuid()) @db.Uuid @map("purchase_order_item_id")
-  purchaseOrderId String        @db.Uuid @map("purchase_order_id")
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  productId       String        @db.Uuid @map("product_id")
-  product         Product       @relation(fields: [productId], references: [id])
-  qty             Int
+model InboundItem {
+  id                   String             @id @default(uuid()) @db.Uuid @map("inbound_item_id")
+  inboundTransactionId String             @db.Uuid @map("inbound_transaction_id")
+  inboundTransaction   InboundTransaction @relation(fields: [inboundTransactionId], references: [id], onDelete: Cascade)
+  productId            String             @db.Uuid @map("product_id")
+  product              Product            @relation(fields: [productId], references: [id])
+  qty                  Int
 
-  @@map("purchase_order_item")
+  @@map("inbound_items")
 }

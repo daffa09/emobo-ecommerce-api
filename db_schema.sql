@@ -28,8 +28,8 @@ DROP TABLE IF EXISTS "monitor_stock" CASCADE;
 DROP TABLE IF EXISTS "conditions" CASCADE;
 DROP TABLE IF EXISTS "brands" CASCADE;
 -- Drop existing tables to recreate (WARNING: Data Loss)
-DROP TABLE IF EXISTS "purchase_order_item" CASCADE;
-DROP TABLE IF EXISTS "purchase_orders" CASCADE;
+DROP TABLE IF EXISTS "inbound_items" CASCADE;
+DROP TABLE IF EXISTS "inbound_transactions" CASCADE;
 DROP TABLE IF EXISTS "contact_messages" CASCADE;
 DROP TABLE IF EXISTS "notifications" CASCADE;
 DROP TABLE IF EXISTS "reviews" CASCADE;
@@ -216,8 +216,8 @@ CREATE TABLE "contact_messages" (
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE "purchase_orders" (
-    "purchase_order_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE "inbound_transactions" (
+    "inbound_transaction_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "receipt_url" VARCHAR(255) NOT NULL,
     "total_items_on_receipt" INTEGER NOT NULL,
     "notes" TEXT,
@@ -225,13 +225,13 @@ CREATE TABLE "purchase_orders" (
     "updated_at" TIMESTAMP NOT NULL
 );
 
-CREATE TABLE "purchase_order_item" (
-    "purchase_order_item_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "purchase_order_id" UUID NOT NULL,
+CREATE TABLE "inbound_items" (
+    "inbound_item_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "inbound_transaction_id" UUID NOT NULL,
     "product_id" UUID NOT NULL,
     "qty" INTEGER NOT NULL,
-    CONSTRAINT "purchase_order_item_purchase_order_id_fkey" FOREIGN KEY ("purchase_order_id") REFERENCES "purchase_orders"("purchase_order_id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "purchase_order_item_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "inbound_items_inbound_transaction_id_fkey" FOREIGN KEY ("inbound_transaction_id") REFERENCES "inbound_transactions"("inbound_transaction_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "inbound_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- Default Admin Seed
@@ -286,7 +286,7 @@ SELECT
 FROM "products" p
 LEFT JOIN (
     SELECT product_id, SUM(qty)::INTEGER AS qty_in 
-    FROM "purchase_order_item" 
+    FROM "inbound_items" 
     GROUP BY product_id
 ) po ON p.product_id = po.product_id
 LEFT JOIN (
@@ -306,7 +306,7 @@ SELECT
 FROM "products" p
 LEFT JOIN (
     SELECT product_id, SUM(qty)::INTEGER AS qty_in 
-    FROM "purchase_order_item" 
+    FROM "inbound_items" 
     GROUP BY product_id
 ) po ON p.product_id = po.product_id
 LEFT JOIN (

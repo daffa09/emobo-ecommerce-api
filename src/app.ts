@@ -16,7 +16,7 @@ import uploadRoute from "./modules/upload/upload.routes";
 import userRoute from "./modules/users/user.route";
 import notificationRoute from "./modules/notifications/notification.route";
 import contactRoute from "./modules/contact/contact.route";
-import purchaseOrderRoute from "./modules/purchase-order/purchase-order.route";
+import inboundRoute from "./modules/inbound/inbound.route";
 import { errorHandler } from "./middleware/error.middleware";
 import { startCronJobs } from "./cron";
 
@@ -46,7 +46,7 @@ app.use("/api/v1/upload", uploadRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/notifications", notificationRoute);
 app.use("/api/v1/contact", contactRoute);
-app.use("/api/v1/purchase-order", purchaseOrderRoute);
+app.use("/api/v1/inbounds", inboundRoute);
 app.use("/api/v1/documentation", docsRoute);
 
 app.get("/api/v1/health", (_req, res) => res.json({ status: "ok" }));

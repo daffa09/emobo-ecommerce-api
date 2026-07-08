@@ -2,6 +2,8 @@
 TRUNCATE TABLE "products" CASCADE;
 TRUNCATE TABLE "brands" CASCADE;
 TRUNCATE TABLE "conditions" CASCADE;
+TRUNCATE TABLE "inbound_transactions" CASCADE;
+TRUNCATE TABLE "inbound_items" CASCADE;
 
 -- 2. Pastikan kolom images tipe array (buat jaga-jaga kalau belum terubah)
 -- Removed TEXT[] constraint
@@ -101,6 +103,16 @@ INSERT INTO "products" (
 )
 ON CONFLICT ("sku") DO NOTHING;
 
--- 6. Insert Initial Stock for Products into monitor_stock
+-- 6. Insert Initial Inbound Transaction (Barang Masuk)
+WITH new_inbound AS (
+    INSERT INTO "inbound_transactions" ("receipt_url", "total_items_on_receipt", "notes", "created_at", "updated_at")
+    VALUES ('/receipts/initial_stock.pdf', 15 * 14, 'Initial stock for all products', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    RETURNING "inbound_transaction_id"
+)
+INSERT INTO "inbound_items" ("inbound_transaction_id", "product_id", "qty")
+SELECT (SELECT "inbound_transaction_id" FROM new_inbound), "product_id", 15 
+FROM "products";
+
+-- 7. Insert Initial Stock for Products into monitor_stock
 INSERT INTO "monitor_stock" ("product_id", "current_stock")
 SELECT product_id, 15 FROM "products";
