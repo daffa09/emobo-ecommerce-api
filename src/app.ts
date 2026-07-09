@@ -46,7 +46,7 @@ app.use("/api/v1/upload", uploadRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/notifications", notificationRoute);
 app.use("/api/v1/contact", contactRoute);
-app.use("/api/v1/inbounds", inboundRoute);
+app.use("/api/v1/inbound", inboundRoute);
 app.use("/api/v1/documentation", docsRoute);
 
 app.get("/api/v1/health", (_req, res) => res.json({ status: "ok" }));
