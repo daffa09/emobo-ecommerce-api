@@ -67,7 +67,6 @@ export const listinboundTransactions = async () => {
               name: true,
               sku: true,
               brand: true,
-              category: true,
             },
           },
         },
