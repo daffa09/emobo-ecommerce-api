@@ -3,6 +3,8 @@ import prisma from "../../prisma";
 export interface inboundTransactionItemData {
   productId: string;
   qty: number;
+  buyPrice: number;
+  price: number;
 }
 export interface inboundTransactionData {
   receiptUrl: string;
@@ -29,12 +31,22 @@ export const createinboundTransaction = async (data: inboundTransactionData) => 
           inboundTransactionId: newPo.id,
           productId: item.productId,
           qty: item.qty,
+          buyPrice: item.buyPrice,
+          price: item.price,
         },
       });
 
       await tx.monitorStock.update({
         where: { productId: item.productId },
         data: { currentStock: { increment: item.qty } },
+      });
+
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          buyPrice: item.buyPrice,
+          price: item.price,
+        }
       });
     }
 

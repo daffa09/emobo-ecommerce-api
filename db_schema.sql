@@ -230,6 +230,8 @@ CREATE TABLE "inbound_items" (
     "inbound_transaction_id" UUID NOT NULL,
     "product_id" UUID NOT NULL,
     "qty" INTEGER NOT NULL,
+    "buy_price" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "price" DECIMAL(65,30) NOT NULL DEFAULT 0,
     CONSTRAINT "inbound_items_inbound_transaction_id_fkey" FOREIGN KEY ("inbound_transaction_id") REFERENCES "inbound_transactions"("inbound_transaction_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "inbound_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );

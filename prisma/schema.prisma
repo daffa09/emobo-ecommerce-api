@@ -68,7 +68,7 @@ model Profile {
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
-  userId    String   @map("user_id")
+  userId    String   @db.Uuid @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   revoked   Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
@@ -287,6 +287,8 @@ model InboundItem {
   productId            String             @db.Uuid @map("product_id")
   product              Product            @relation(fields: [productId], references: [id])
   qty                  Int
+  buyPrice             Decimal            @default(0) @map("buy_price") @db.Decimal
+  price                Decimal            @default(0) @map("price") @db.Decimal
 
   @@map("inbound_items")
 }

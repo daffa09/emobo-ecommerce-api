@@ -109,8 +109,8 @@ WITH new_inbound AS (
     VALUES ('/receipts/initial_stock.pdf', 15 * 14, 'Initial stock for all products', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     RETURNING "inbound_transaction_id"
 )
-INSERT INTO "inbound_items" ("inbound_transaction_id", "product_id", "qty")
-SELECT (SELECT "inbound_transaction_id" FROM new_inbound), "product_id", 15 
+INSERT INTO "inbound_items" ("inbound_transaction_id", "product_id", "qty", "buy_price", "price")
+SELECT (SELECT "inbound_transaction_id" FROM new_inbound), "product_id", 15, "buy_price", "price" 
 FROM "products";
 
 -- 7. Insert Initial Stock for Products into monitor_stock

@@ -135,17 +135,19 @@ export const listProductsForAdmin = async () => {
 const PPN_RATE = process.env.PPN_RATE ? parseInt(process.env.PPN_RATE) : 11;
 
 export const createProduct = async (data: any) => {
-  if (data.price) {
-    data.price = Math.round(data.price * (1 + PPN_RATE / 100));
-  }
-  return prisma.product.create({ data });
+  const { stock, ...productData } = data;
+  return prisma.product.create({ 
+    data: {
+      ...productData,
+      price: 0,
+      buyPrice: 0,
+    } 
+  });
 };
 
 export const updateProduct = async (id: string, data: any) => {
-  if (data.price) {
-    data.price = Math.round(data.price * (1 + PPN_RATE / 100));
-  }
-  return prisma.product.update({ where: { id }, data });
+  const { stock, price, buyPrice, ...productData } = data;
+  return prisma.product.update({ where: { id }, data: productData });
 };
 
 export const deleteProduct = async (id: string) => {
