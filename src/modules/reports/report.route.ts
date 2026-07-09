@@ -11,6 +11,6 @@ router.get("/incoming", authMiddleware, adminOnly, controller.getIncomingGoodsRe
 router.get("/outbound", authMiddleware, adminOnly, controller.getOutboundGoodsReport);
 router.get("/stock", authMiddleware, adminOnly, controller.getCurrentStockReport);
 router.get("/shipping", authMiddleware, adminOnly, controller.getShippingReport);
-router.get("/sales-by-brand", authMiddleware, adminOnly, controller.getSalesByBrandYearly);
+router.get("/sales-by-brand", controller.getSalesByBrandYearly);
 
 export default router;
