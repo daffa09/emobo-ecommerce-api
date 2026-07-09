@@ -242,19 +242,26 @@ export const generateSalesByBrandYearly = async (year: number) => {
     }
   });
 
-  const aggOrders: Record<string, Set<string>> = {};
+  // brand -> month (1-12) -> set of order ids, so an order with 2 items of the
+  // same brand still counts as one transaction
+  const aggOrders: Record<string, Record<number, Set<string>>> = {};
   orders.forEach(o => {
+    const month = o.createdAt.getMonth() + 1;
     o.items.forEach(item => {
       const brandName = item.product.brand.name;
-      if (!aggOrders[brandName]) aggOrders[brandName] = new Set();
-      aggOrders[brandName].add(o.id);
+      if (!aggOrders[brandName]) aggOrders[brandName] = {};
+      if (!aggOrders[brandName][month]) aggOrders[brandName][month] = new Set();
+      aggOrders[brandName][month].add(o.id);
     });
   });
-  
-  const finalAgg = Object.keys(aggOrders).map(brand => ({
-    brand,
-    transactions: aggOrders[brand].size
-  })).sort((a, b) => b.transactions - a.transactions);
+
+  const finalAgg: Record<string, Record<number, number>> = {};
+  Object.keys(aggOrders).forEach(brand => {
+    finalAgg[brand] = {};
+    Object.keys(aggOrders[brand]).forEach(month => {
+      finalAgg[brand][Number(month)] = aggOrders[brand][Number(month)].size;
+    });
+  });
 
   return finalAgg;
 };

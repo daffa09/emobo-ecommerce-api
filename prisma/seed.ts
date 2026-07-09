@@ -5,34 +5,42 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Cleaning up database...");
   await prisma.review.deleteMany({});
+  await prisma.inboundItem.deleteMany({});
+  await prisma.inboundTransaction.deleteMany({});
   await prisma.payment.deleteMany({});
   await prisma.orderItem.deleteMany({});
   await prisma.order.deleteMany({});
-  await prisma.refreshToken.deleteMany({});
+  await prisma.monitorStock.deleteMany({});
   await prisma.product.deleteMany({});
+  await prisma.brand.deleteMany({});
+  await prisma.condition.deleteMany({});
+  await prisma.refreshToken.deleteMany({});
+  await prisma.notification.deleteMany({});
+  await prisma.register.deleteMany({});
   await prisma.user.deleteMany({});
+  await prisma.profile.deleteMany({});
 
   console.log("Seeding users...");
   const passwordHash = bcrypt.hashSync("password123", 10);
 
-  // Admin User
+  // isEmailVerified: true — akun seed harus bisa langsung login tanpa klik link verifikasi
   await prisma.user.create({
     data: {
       email: "admin@emobo.com",
       passwordHash,
-      name: "Super Admin",
       role: "ADMIN",
-      phone: "6285157441749",
+      profile: { create: { name: "Super Admin", phone: "6285157441749" } },
+      register: { create: { isEmailVerified: true } },
     },
   });
 
-  // Customer User
   await prisma.user.create({
     data: {
       email: "customer@emobo.com",
       passwordHash,
-      name: "Valued Customer",
       role: "CUSTOMER",
+      profile: { create: { name: "Valued Customer", phone: "6281234567890" } },
+      register: { create: { isEmailVerified: true } },
     },
   });
 
@@ -288,21 +296,62 @@ async function main() {
           "Specs": "15.6-inch, FHD (1920 x 1080) 16:9, Value IPS-level, Anti-glare display, sRGB:100%, Refresh Rate:144Hz"
         }
       }
+    },
+    {
+      // stok 0 — dipakai test case out-of-stock pada black box testing
+      sku: "ACR-ASP3-DU-01",
+      name: "Acer Aspire 3 (Display Unit)",
+      brand: "Acer",
+      price: 6500000,
+      stock: 0,
+      description: "Unit pajangan Acer Aspire 3. Stok kosong, tidak tersedia untuk dipesan.",
+      weight: 1800,
+      condition: "NEW",
+      warranty: "1 Year Limited",
+      specifications: {
+        "Performance": {
+          "Processor": "AMD Ryzen 5 7520U",
+          "RAM": "8GB LPDDR5",
+          "Storage": "512GB PCIe NVMe SSD"
+        }
+      }
     }
   ];
 
-  for (const laptop of laptops) {
-    const laptopData = laptop as any;
-    const images = laptopData.images || [`/laptops/${laptop.brand.toLowerCase()}.jpg`];
-    // Remove images from spread to avoid conflict/duplication locally, though spread prioritizes last
-    // But since we are constructing data explicitly, let's be safe.
-    delete laptopData.images;
+  console.log("Seeding brands & conditions...");
+  const brandNames = [...new Set(laptops.map((l) => l.brand))];
+  const conditionNames = [...new Set(laptops.map((l) => l.condition))];
 
-    await prisma.product.create({
+  const brandIds = new Map<string, string>();
+  for (const name of brandNames) {
+    const brand = await prisma.brand.create({ data: { name } });
+    brandIds.set(name, brand.id);
+  }
+
+  const conditionIds = new Map<string, string>();
+  for (const name of conditionNames) {
+    const condition = await prisma.condition.create({ data: { name } });
+    conditionIds.set(name, condition.id);
+  }
+
+  for (const laptop of laptops) {
+    // stock bukan kolom Product — disimpan terpisah di MonitorStock
+    const { brand, condition, stock, images, specifications, ...rest } = laptop as typeof laptop & {
+      images?: string[];
+    };
+
+    const product = await prisma.product.create({
       data: {
-        ...laptopData,
-        images: images
+        ...rest,
+        images: images || [`/laptops/${brand.toLowerCase()}.jpg`],
+        specifications: specifications as any,
+        brandId: brandIds.get(brand)!,
+        conditionId: conditionIds.get(condition)!,
       },
+    });
+
+    await prisma.monitorStock.create({
+      data: { productId: product.id, currentStock: stock },
     });
   }
 

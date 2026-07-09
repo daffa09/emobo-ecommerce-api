@@ -1,5 +1,6 @@
 import prisma from "../../prisma";
 import { getLatestStockMap } from "../products/product.service";
+import { isValidOrderStatus } from "../../utils/validation";
 
 export const createOrder = async (
   userId: string,
@@ -168,6 +169,11 @@ export const listAllOrders = async () => {
 };
 
 export const updateStatus = async (id: string, status: any, trackingNo?: string) => {
+  if (!isValidOrderStatus(status)) throw new Error(`Invalid order status: ${status}`);
+  if (status === "SHIPPED" && !trackingNo?.trim()) {
+    throw new Error("Tracking number is required to mark an order as SHIPPED");
+  }
+
   const data: any = { status };
   if (trackingNo !== undefined) data.trackingNo = trackingNo;
   if (status === "SHIPPED") data.shippedAt = new Date();

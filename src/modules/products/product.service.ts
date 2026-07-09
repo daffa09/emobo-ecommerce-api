@@ -55,7 +55,9 @@ export const listPublicProducts = async (params: {
   
   if (category) {
     const categories = category.split(",");
-    where.category = { in: categories };
+    const categoryConditions = categories.map(c => ({ category: { contains: c, mode: 'insensitive' } }));
+    where.AND = where.AND || [];
+    where.AND.push({ OR: categoryConditions });
   }
 
   if (search) {

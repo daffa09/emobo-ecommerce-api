@@ -4,9 +4,14 @@ import { sendResponse } from "../../utils/response";
 import { findUserByEmail, registerUser, createSessionTokens, rotateRefreshToken, verifyEmailService } from "./auth.service";
 import bcrypt from "bcryptjs";
 import prisma from "../../prisma";
+import { isValidEmail, isValidPassword, PASSWORD_MIN_LENGTH } from "../../utils/validation";
 
 export const register = async (req: Request, res: Response) => {
   const { email, password, name } = req.body;
+  if (!isValidEmail(email)) return sendResponse(res, 400, "Invalid email format");
+  if (!isValidPassword(password))
+    return sendResponse(res, 400, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`);
+
   const existing = await findUserByEmail(email);
   if (existing) return sendResponse(res, 400, "Email already registered");
 

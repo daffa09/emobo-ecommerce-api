@@ -1,4 +1,5 @@
 import prisma from "../../prisma";
+import { isValidRating } from "../../utils/validation";
 
 export const createReview = async (data: {
   orderId: string;
@@ -7,6 +8,10 @@ export const createReview = async (data: {
   rating: number;
   comment?: string;
 }) => {
+  if (!isValidRating(data.rating)) {
+    throw new Error("Rating must be an integer between 1 and 5");
+  }
+
   const order = await prisma.order.findUnique({
     where: { id: data.orderId },
     include: { profile: { include: { user: true } } }
