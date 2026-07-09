@@ -14,7 +14,10 @@
 --   * File nota barang masuk yang ditunjuk "receipt_url" dibuat oleh
 --     scripts/generate-invoices.ts -- jalankan setelah file ini.
 --
--- Cara pakai:  psql -d <database> -f dummy_data.sql
+-- Cara pakai:
+--   1. psql -d <database> -f dummy_data.sql
+--      (atau: npx prisma db execute --file dummy_data.sql --schema prisma/schema.prisma)
+--   2. npx tsx scripts/generate-invoices.ts   <- membuat file PDF nota & invoice
 -- =====================================================================
 
 BEGIN;
@@ -699,6 +702,3 @@ END
 $check$;
 
 COMMIT;
-
--- Setelah ini jalankan:  npx tsx scripts/generate-invoices.ts
--- untuk membuat file PDF nota barang masuk dan invoice order.

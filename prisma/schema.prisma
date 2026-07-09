@@ -133,7 +133,7 @@ model Product {
   buyPrice           Decimal             @default(0) @map("buy_price") @db.Decimal
   brandId            String              @db.Uuid @map("brand_id")
   brand              Brand               @relation(fields: [brandId], references: [id])
-  category           String              @default("General") @db.VarChar(100)
+
   description        String?             @db.Text
   images             Json                @default("[]")
   specifications     Json                @default("{}")

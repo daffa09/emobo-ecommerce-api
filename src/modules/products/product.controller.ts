@@ -3,13 +3,13 @@ import { sendResponse } from "../../utils/response";
 import * as service from "./product.service";
 
 export const getPublicProducts = async (req: Request, res: Response) => {
-  const { limit, offset, brandId, brand, category, search, minPrice, maxPrice, conditionId, sortBy } = req.query;
+  const { limit, offset, brandId, brand, search, minPrice, maxPrice, conditionId, sortBy } = req.query;
   const data = await service.listPublicProducts({
     limit: limit ? Number(limit) : 8,
     offset: offset ? Number(offset) : 0,
     brandId: brandId as string,
     brand: brand as string,
-    category: category as string,
+
     search: search as string,
     minPrice: minPrice ? Number(minPrice) : undefined,
     maxPrice: maxPrice ? Number(maxPrice) : undefined,

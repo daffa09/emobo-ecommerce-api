@@ -17,14 +17,14 @@ export const listPublicProducts = async (params: {
   offset?: number;
   brandId?: string;
   brand?: string;
-  category?: string;
+
   search?: string;
   minPrice?: number;
   maxPrice?: number;
   conditionId?: string;
   sortBy?: string;
 }) => {
-  const { limit = 8, offset = 0, brandId, brand, category, search, minPrice, maxPrice, conditionId, sortBy } = params;
+  const { limit = 8, offset = 0, brandId, brand, search, minPrice, maxPrice, conditionId, sortBy } = params;
   
   const where: any = { deletedAt: null };
   
@@ -53,17 +53,12 @@ export const listPublicProducts = async (params: {
     }
   }
   
-  if (category) {
-    const categories = category.split(",");
-    const categoryConditions = categories.map(c => ({ category: { contains: c, mode: 'insensitive' } }));
-    where.AND = where.AND || [];
-    where.AND.push({ OR: categoryConditions });
-  }
+
 
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" } },
-      { category: { contains: search, mode: "insensitive" } },
+
       { brand: { name: { contains: search, mode: "insensitive" } } },
       { condition: { name: { contains: search, mode: "insensitive" } } },
     ];
