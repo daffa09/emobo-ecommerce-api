@@ -66,6 +66,20 @@ router.post("/", authMiddleware, adminOnly, controller.createProduct);
 /**
  * @swagger
  * /products/{id}:
+ *   get:
+ *     summary: Get product detail with buy price and inbound history (Admin)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product detail
  *   put:
  *     summary: Update product (Admin)
  *     tags: [Products]
@@ -100,6 +114,7 @@ router.post("/", authMiddleware, adminOnly, controller.createProduct);
  *       200:
  *         description: Product deleted
  */
+router.get("/:id", authMiddleware, adminOnly, controller.getByIdAdmin);
 router.put("/:id", authMiddleware, adminOnly, controller.updateProduct);
 router.delete("/:id", authMiddleware, adminOnly, controller.deleteProduct);
 

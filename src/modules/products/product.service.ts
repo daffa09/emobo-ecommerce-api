@@ -98,7 +98,7 @@ export const listPublicProducts = async (params: {
     const totalRating = p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
     const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
     
-    const { reviews, ...rest } = p; 
+    const { reviews, buyPrice, ...rest } = p;
     return {
       ...rest,
       stock: stockMap[p.id] || 0,
@@ -192,13 +192,40 @@ export const getProductById = async (id: string) => {
   const totalRating = p.reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
   const averageRating = p._count.reviews > 0 ? (totalRating / p._count.reviews).toFixed(1) : 0;
   
-  const { reviews, ...rest } = p; 
+  // buyPrice (harga modal) tidak boleh ikut ke endpoint publik
+  const { reviews, buyPrice, ...rest } = p;
   return {
     ...rest,
     stock: stockMap[id] || 0,
     rating: Number(averageRating),
     reviewsCount: p._count.reviews
   };
+};
+
+export const getProductByIdForAdmin = async (id: string) => {
+  const p = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      brand: true,
+      condition: true,
+      inboundItems: {
+        select: {
+          id: true,
+          qty: true,
+          buyPrice: true,
+          price: true,
+          inboundTransaction: { select: { id: true, createdAt: true, notes: true } },
+        },
+        orderBy: { inboundTransaction: { createdAt: "desc" } },
+      },
+    },
+  });
+
+  if (!p) return null;
+
+  const stockMap = await getLatestStockMap([id]);
+
+  return { ...p, stock: stockMap[id] || 0 };
 };
 
 export const getTopSellingProducts = async (limit: number = 5) => {

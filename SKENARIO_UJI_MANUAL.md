@@ -40,8 +40,12 @@ itu bukan bug, memang alurnya begitu.
 
 **Menu:** Admin → Manage Products → **Add New Product**
 
-Ulangi 3× dengan data di bawah. Untuk kolom **Specifications**, klik tombol
-**Fill Template** lalu isi seadanya, atau salin blok HTML yang disediakan.
+Ulangi 3× dengan data di bawah.
+
+Kolom **Specifications** itu editor teks (TipTap), jadi diketik langsung —
+bukan tempel HTML. Klik **Fill Template** buat dapat kerangkanya, lalu ikuti
+susunan di bawah: baris **Judul** pakai format Heading, baris di bawahnya
+pakai Bullet List.
 
 ### Produk A
 
@@ -58,8 +62,21 @@ Ulangi 3× dengan data di bawah. Untuk kolom **Specifications**, klik tombol
 
 Specifications:
 
-```html
-<h2>Prosesor &amp; Grafis</h2><ul><li><strong>Prosesor:</strong> AMD Ryzen 5 7535HS (6 core / 12 thread)</li><li><strong>Grafis:</strong> NVIDIA GeForce RTX 2050 4 GB GDDR6</li></ul><h2>Memori &amp; Penyimpanan</h2><ul><li><strong>RAM:</strong> 8 GB DDR5-4800</li><li><strong>Penyimpanan:</strong> SSD 512 GB PCIe 4.0 NVMe</li></ul><h2>Layar</h2><ul><li><strong>Ukuran:</strong> 15,6 inci IPS, 1920 x 1080</li><li><strong>Refresh Rate:</strong> 144 Hz</li></ul>
+```
+Prosesor & Grafis
+
+- Prosesor: AMD Ryzen 5 7535HS (6 core / 12 thread)
+- Grafis: NVIDIA GeForce RTX 2050 4 GB GDDR6
+
+Memori & Penyimpanan
+
+- RAM: 8 GB DDR5-4800
+- Penyimpanan: SSD 512 GB PCIe 4.0 NVMe
+
+Layar
+
+- Ukuran: 15,6 inci IPS, 1920 x 1080
+- Refresh Rate: 144 Hz
 ```
 
 ### Produk B
@@ -77,8 +94,21 @@ Specifications:
 
 Specifications:
 
-```html
-<h2>Prosesor &amp; Grafis</h2><ul><li><strong>Prosesor:</strong> AMD Ryzen 7 5800H (8 core / 16 thread)</li><li><strong>Grafis:</strong> NVIDIA GeForce RTX 3050 Ti 4 GB GDDR6</li></ul><h2>Memori &amp; Penyimpanan</h2><ul><li><strong>RAM:</strong> 16 GB DDR4-3200</li><li><strong>Penyimpanan:</strong> SSD 512 GB NVMe</li></ul><h2>Layar</h2><ul><li><strong>Ukuran:</strong> 16,1 inci IPS, 1920 x 1080</li><li><strong>Refresh Rate:</strong> 144 Hz</li></ul>
+```
+Prosesor & Grafis
+
+- Prosesor: AMD Ryzen 7 5800H (8 core / 16 thread)
+- Grafis: NVIDIA GeForce RTX 3050 Ti 4 GB GDDR6
+
+Memori & Penyimpanan
+
+- RAM: 16 GB DDR4-3200
+- Penyimpanan: SSD 512 GB NVMe
+
+Layar
+
+- Ukuran: 16,1 inci IPS, 1920 x 1080
+- Refresh Rate: 144 Hz
 ```
 
 ### Produk C
@@ -96,8 +126,20 @@ Specifications:
 
 Specifications:
 
-```html
-<h2>Prosesor &amp; Grafis</h2><ul><li><strong>Prosesor:</strong> Intel Core i5-1335U (10 core / 12 thread)</li><li><strong>Grafis:</strong> Intel Iris Xe Graphics</li></ul><h2>Memori &amp; Penyimpanan</h2><ul><li><strong>RAM:</strong> 16 GB LPDDR5</li><li><strong>Penyimpanan:</strong> SSD 512 GB NVMe</li></ul><h2>Layar</h2><ul><li><strong>Ukuran:</strong> 14 inci IPS, 1920 x 1200</li></ul>
+```
+Prosesor & Grafis
+
+- Prosesor: Intel Core i5-1335U (10 core / 12 thread)
+- Grafis: Intel Iris Xe Graphics
+
+Memori & Penyimpanan
+
+- RAM: 16 GB LPDDR5
+- Penyimpanan: SSD 512 GB NVMe
+
+Layar
+
+- Ukuran: 14 inci IPS, 1920 x 1200
 ```
 
 **Hasil yang diharapkan**
