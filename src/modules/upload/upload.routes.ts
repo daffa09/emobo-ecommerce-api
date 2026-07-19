@@ -3,7 +3,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { adminOnly } from '../../middleware/role.middleware';
 
@@ -54,12 +54,12 @@ router.post('/document', authMiddleware, adminOnly, upload.single('document'), a
     // but for PO receipts, maybe we just want to keep the original quality or convert to webp
     
     if (file.mimetype === 'application/pdf') {
-      filename = `${uuidv4()}.pdf`;
+      filename = `${randomUUID()}.pdf`;
       const filepath = path.join(uploadsDir, filename);
       await fs.writeFile(filepath, file.buffer);
     } else {
       // It's an image, convert to optimized webp
-      filename = `${uuidv4()}.webp`;
+      filename = `${randomUUID()}.webp`;
       const filepath = path.join(uploadsDir, filename);
       
       await sharp(file.buffer)
@@ -96,7 +96,7 @@ router.post('/image', authMiddleware, adminOnly, upload.single('image'), async (
     }
 
     // Generate unique filename
-    const filename = `${uuidv4()}.webp`;
+    const filename = `${randomUUID()}.webp`;
     const filepath = path.join(uploadsDir, filename);
 
     // Convert and save as WebP with optimization
@@ -135,7 +135,7 @@ router.post('/images', authMiddleware, adminOnly, upload.array('images', 5), asy
 
     const uploadedImages = await Promise.all(
       req.files.map(async (file) => {
-        const filename = `${uuidv4()}.webp`;
+        const filename = `${randomUUID()}.webp`;
         const filepath = path.join(uploadsDir, filename);
 
         await sharp(file.buffer)

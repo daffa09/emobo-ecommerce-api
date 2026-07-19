@@ -2,6 +2,29 @@ import { Request, Response } from "express";
 import prisma from "../../prisma";
 import { sendResponse } from "../../utils/response";
 
+/**
+ * Ratakan field profile ke level user — bentuk yang diharapkan UI.
+ * `register` ikut diringkas jadi isEmailVerified kalau memang di-select.
+ */
+const flattenProfile = (user: any) => {
+  const { profile, register, ...rest } = user;
+  return {
+    ...rest,
+    ...(register !== undefined && {
+      isEmailVerified: register?.isEmailVerified || false,
+    }),
+    name: profile?.name,
+    phone: profile?.phone,
+    image: profile?.image,
+    address: profile?.address,
+    addressNotes: profile?.addressNotes,
+    provinceId: profile?.provinceId,
+    cityId: profile?.cityId,
+    latitude: profile?.latitude,
+    longitude: profile?.longitude,
+  };
+};
+
 export const getProfile = async (req: Request, res: Response) => {
   // @ts-ignore
   const userId = req.user.id;
@@ -34,24 +57,7 @@ export const getProfile = async (req: Request, res: Response) => {
 
   if (!user) return sendResponse(res, 404, "User not found");
 
-  const flatUser = {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    isEmailVerified: user.register?.isEmailVerified || false,
-    createdAt: user.createdAt,
-    name: user.profile?.name,
-    phone: user.profile?.phone,
-    image: user.profile?.image,
-    address: user.profile?.address,
-    addressNotes: user.profile?.addressNotes,
-    provinceId: user.profile?.provinceId,
-    cityId: user.profile?.cityId,
-    latitude: user.profile?.latitude,
-    longitude: user.profile?.longitude,
-  };
-
-  return sendResponse(res, 200, "fetch profile success", flatUser);
+  return sendResponse(res, 200, "fetch profile success", flattenProfile(user));
 };
 
 export const updateProfile = async (req: Request, res: Response) => {
@@ -89,23 +95,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       },
     });
 
-    const flatUser = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-      name: user.profile?.name,
-      phone: user.profile?.phone,
-      image: user.profile?.image,
-      address: user.profile?.address,
-      addressNotes: user.profile?.addressNotes,
-      provinceId: user.profile?.provinceId,
-      cityId: user.profile?.cityId,
-      latitude: user.profile?.latitude,
-      longitude: user.profile?.longitude,
-    };
-
-    return sendResponse(res, 200, "profile updated", flatUser);
+    return sendResponse(res, 200, "profile updated", flattenProfile(user));
   } catch (err: any) {
     return sendResponse(res, 400, err.message);
   }

@@ -1,7 +1,7 @@
 // src/modules/auth/auth.controller.ts
 import { Request, Response } from "express";
 import { sendResponse } from "../../utils/response";
-import { findUserByEmail, registerUser, createSessionTokens, rotateRefreshToken, verifyEmailService } from "./auth.service";
+import { findUserByEmail, registerUser, createSessionTokens, rotateRefreshToken, verifyEmailService, requestPasswordReset, resetPassword } from "./auth.service";
 import bcrypt from "bcryptjs";
 import prisma from "../../prisma";
 import { isValidEmail, isValidPassword, PASSWORD_MIN_LENGTH } from "../../utils/validation";
@@ -99,7 +99,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
   if (!email) return sendResponse(res, 400, "Email is required");
 
   try {
-    const { requestPasswordReset } = await import("./auth.service");
     await requestPasswordReset(email);
     return sendResponse(res, 200, "Link reset password telah dikirim ke email kamu.");
   } catch (error: any) {
@@ -114,8 +113,7 @@ export const handleResetPassword = async (req: Request, res: Response) => {
   if (!token || !password) return sendResponse(res, 400, "Token and new password are required");
 
   try {
-    const { resetPassword: resetPasswordService } = await import("./auth.service");
-    await resetPasswordService(token, password);
+    await resetPassword(token, password);
     return sendResponse(res, 200, "Password kamu berhasil direset! Silakan login dengan password baru.");
   } catch (error: any) {
     return sendResponse(res, 400, error.message || "Gagal reset password");

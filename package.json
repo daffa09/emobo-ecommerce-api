@@ -7,6 +7,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "tsx --test src/**/*.test.ts",
+    "test:api": "tsx scripts/blackbox-api.ts",
     "lint": "eslint . --ext .ts"
   },
   "keywords": [],
@@ -32,8 +33,7 @@
     "prisma": "^5.13.0",
     "sharp": "^0.33.5",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",
-    "uuid": "^11.0.5"
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -47,7 +47,6 @@
     "@types/pdfmake": "^0.2.12",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
-    "@types/uuid": "^10.0.0",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"

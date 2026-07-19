@@ -68,8 +68,6 @@ router.put("/:id/status", authMiddleware, adminOnly, ctrl.updateOrderStatus);
  *       200:
  *         description: List of orders
  */
-router.post("/", authMiddleware, ctrl.createOrder);
-router.get("/", authMiddleware, ctrl.listOrdersForUser);
 
 /**
  * @swagger

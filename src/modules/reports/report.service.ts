@@ -1,12 +1,24 @@
+import { Prisma } from "@prisma/client";
 import prisma from "../../prisma";
 
+// Filter rentang tanggal yang dipakai kelima laporan.
+const dateWhere = (startDate?: Date, endDate?: Date) =>
+  startDate || endDate
+    ? {
+        createdAt: {
+          ...(startDate && { gte: startDate }),
+          ...(endDate && { lte: endDate }),
+        },
+      }
+    : {};
+
+const period = (startDate?: Date, endDate?: Date) => ({
+  startDate: startDate || null,
+  endDate: endDate || null,
+});
+
 export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
-  const where: any = {};
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
-  }
+  const where = dateWhere(startDate, endDate);
 
   const reports = await prisma.order.findMany({
     where: {
@@ -48,20 +60,12 @@ export const generateSalesReport = async (startDate?: Date, endDate?: Date) => {
     totalProfit: Math.round(totalProfit),
     totalCustomers,
     totalOrders,
-    period: {
-      startDate: startDate || null,
-      endDate: endDate || null,
-    },
+    period: period(startDate, endDate),
   };
 };
 
 export const generateIncomingGoodsReport = async (startDate?: Date, endDate?: Date) => {
-  const where: any = {};
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
-  }
+  const where = dateWhere(startDate, endDate);
 
   const reports = await prisma.inboundTransaction.findMany({
     where,
@@ -92,20 +96,12 @@ export const generateIncomingGoodsReport = async (startDate?: Date, endDate?: Da
     purchases: formattedReports,
     totalQuantity,
     totalCost: Math.round(totalCost),
-    period: {
-      startDate: startDate || null,
-      endDate: endDate || null,
-    },
+    period: period(startDate, endDate),
   };
 };
 
 export const generateOutboundGoodsReport = async (startDate?: Date, endDate?: Date) => {
-  const where: any = {};
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
-  }
+  const where = dateWhere(startDate, endDate);
 
   const reports = await prisma.order.findMany({
     where: {
@@ -136,26 +132,16 @@ export const generateOutboundGoodsReport = async (startDate?: Date, endDate?: Da
   return {
     outbound: formattedReports,
     totalQtyOut,
-    period: { startDate: startDate || null, endDate: endDate || null },
+    period: period(startDate, endDate),
   };
 };
 
 export const generateCurrentStockReport = async (startDate?: Date, endDate?: Date) => {
-  const whereInbound: any = {};
-  const whereOutbound: any = { status: { in: ["SHIPPED", "COMPLETED"] } };
-  
-  if (startDate || endDate) {
-    whereInbound.createdAt = {};
-    whereOutbound.createdAt = {};
-    if (startDate) {
-      whereInbound.createdAt.gte = startDate;
-      whereOutbound.createdAt.gte = startDate;
-    }
-    if (endDate) {
-      whereInbound.createdAt.lte = endDate;
-      whereOutbound.createdAt.lte = endDate;
-    }
-  }
+  const whereInbound: Prisma.InboundTransactionWhereInput = dateWhere(startDate, endDate);
+  const whereOutbound: Prisma.OrderWhereInput = {
+    status: { in: ["SHIPPED", "COMPLETED"] },
+    ...dateWhere(startDate, endDate),
+  };
 
   const products = await prisma.product.findMany({
     where: { deletedAt: null },
@@ -185,17 +171,15 @@ export const generateCurrentStockReport = async (startDate?: Date, endDate?: Dat
 
   return {
     stock: formattedReports,
-    period: { startDate: startDate || null, endDate: endDate || null },
+    period: period(startDate, endDate),
   };
 };
 
 export const generateShippingReport = async (startDate?: Date, endDate?: Date) => {
-  const where: any = { status: { in: ["SHIPPED", "COMPLETED"] } };
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
-  }
+  const where: Prisma.OrderWhereInput = {
+    status: { in: ["SHIPPED", "COMPLETED"] },
+    ...dateWhere(startDate, endDate),
+  };
 
   const orders = await prisma.order.findMany({
     where,
@@ -218,7 +202,7 @@ export const generateShippingReport = async (startDate?: Date, endDate?: Date) =
 
   return {
     shipping: formattedReports,
-    period: { startDate: startDate || null, endDate: endDate || null },
+    period: period(startDate, endDate),
   };
 };
 

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { sendResponse } from "../../utils/response";
 import * as service from "./order.service";
+import { createNotification } from "../notifications/notification.controller";
 
 export const createOrder = async (req: Request, res: Response) => {
   // @ts-ignore
@@ -75,16 +76,13 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
     const order = await service.updateStatus(id, status, trackingNo);
     
     try {
-      const { createNotification } = require("../notifications/notification.controller");
+      const notifyUserId = order.profile?.user?.id;
       const notifMessage = trackingNo
         ? `Pesanan #${order.id} Anda telah dikirim! No Resi: ${trackingNo}`
         : `Status pesanan #${order.id} Anda telah diperbarui menjadi ${status}.`;
-      await createNotification(
-        order.profile.user?.id,
-        "Order Status Updated",
-        notifMessage,
-        "ORDER"
-      );
+      if (notifyUserId) {
+        await createNotification(notifyUserId, "Order Status Updated", notifMessage, "ORDER");
+      }
     } catch (error) {
       console.error("Failed to create notification for order status update:", error);
     }
@@ -104,7 +102,6 @@ export const confirmOrderReceived = async (req: Request, res: Response) => {
     const order = await service.confirmOrderReceived(id, userId);
     
     try {
-      const { createNotification } = require("../notifications/notification.controller");
       await createNotification(
         userId,
         "Pesanan Dikonfirmasi",

@@ -3,12 +3,12 @@ import prisma from "../../prisma";
 import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../utils/jwt";
 import { add } from "date-fns";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../../utils/email";
 
 export const registerUser = async (email: string, password: string, name?: string) => {
   const hash = bcrypt.hashSync(password, 8);
-  const verificationToken = uuidv4();
+  const verificationToken = randomUUID();
 
   const user = await prisma.user.create({
     data: { 
@@ -122,7 +122,7 @@ export const requestPasswordReset = async (email: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new Error("Email not found");
 
-  const resetToken = uuidv4();
+  const resetToken = randomUUID();
   const resetExpires = add(new Date(), { hours: 1 });
 
   await prisma.user.update({

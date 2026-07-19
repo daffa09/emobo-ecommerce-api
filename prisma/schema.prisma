@@ -6,7 +6,6 @@ datasource db {
 generator client {
   provider        = "prisma-client-js"
   binaryTargets   = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
-  previewFeatures = ["views"]
 }
 
 enum Role {
@@ -115,15 +114,6 @@ model MonitorStock {
   @@map("monitor_stock")
 }
 
-view StockReportView {
-  productId    String  @unique @map("product_id")
-  product      Product @relation(fields: [productId], references: [id])
-  qtyIn        Int     @map("qty_in")
-  qtyOut       Int     @map("qty_out")
-
-  @@map("stock_report_view")
-}
-
 model Product {
   id                 String              @id @default(uuid()) @db.Uuid @map("product_id")
   sku                String              @unique @db.VarChar(100)
@@ -149,7 +139,6 @@ model Product {
   reviews            Review[]
   inboundItems       InboundItem[]
   monitorStock       MonitorStock?
-  stockReport        StockReportView?
 
   @@map("products")
 }
