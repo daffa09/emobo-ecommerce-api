@@ -46,14 +46,14 @@ DROP TABLE IF EXISTS "profiles" CASCADE;
 
 CREATE TABLE "brands" (
     "brand_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "name" VARCHAR(255) NOT NULL UNIQUE,
+    "name" VARCHAR(100) NOT NULL UNIQUE,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL
 );
 
 CREATE TABLE "conditions" (
     "condition_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "name" VARCHAR(255) NOT NULL UNIQUE,
+    "name" VARCHAR(50) NOT NULL UNIQUE,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP NOT NULL
 );
@@ -65,8 +65,8 @@ CREATE TABLE "profiles" (
     "image" TEXT,
     "address" VARCHAR(255),
     "address_notes" VARCHAR(255),
-    "province_id" VARCHAR(50),
-    "city_id" VARCHAR(50),
+    "province_id" UUID,
+    "city_id" UUID,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION
 );
@@ -93,7 +93,7 @@ CREATE TABLE "registers" (
 );
 
 CREATE TABLE "refresh_tokens" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    "id" TEXT NOT NULL PRIMARY KEY,
     "token" TEXT NOT NULL UNIQUE,
     "user_id" UUID NOT NULL,
     "revoked" BOOLEAN NOT NULL DEFAULT false,
@@ -110,7 +110,6 @@ CREATE TABLE "products" (
     "price" DECIMAL NOT NULL,
     "buy_price" DECIMAL NOT NULL DEFAULT 0,
     "brand_id" UUID NOT NULL,
-    "category" VARCHAR(100) NOT NULL DEFAULT 'General',
     "description" TEXT,
     "images" JSONB NOT NULL DEFAULT '[]'::jsonb,
     "specifications" JSONB NOT NULL DEFAULT '{}',
@@ -169,8 +168,8 @@ CREATE TABLE "order_item" (
 CREATE TABLE "payments" (
     "payment_id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "order_id" VARCHAR(100) NOT NULL UNIQUE,
-    "provider" VARCHAR(50) NOT NULL,
-    "provider_id" VARCHAR(100) NOT NULL,
+    "provider" VARCHAR(100) NOT NULL,
+    "provider_id" VARCHAR(255),
     "snap_token" VARCHAR(255),
     "redirect_url" VARCHAR(255),
     "amount" DECIMAL NOT NULL,
@@ -207,11 +206,11 @@ CREATE TABLE "notifications" (
 );
 
 CREATE TABLE "contact_messages" (
-    "id" UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-    "first_name" VARCHAR(255) NOT NULL,
-    "last_name" VARCHAR(255) NOT NULL,
-    "subject" VARCHAR(255) NOT NULL,
-    "phone" VARCHAR(255) NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "first_name" TEXT NOT NULL,
+    "last_name" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -230,8 +229,8 @@ CREATE TABLE "inbound_items" (
     "inbound_transaction_id" UUID NOT NULL,
     "product_id" UUID NOT NULL,
     "qty" INTEGER NOT NULL,
-    "buy_price" DECIMAL(65,30) NOT NULL DEFAULT 0,
-    "price" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "buy_price" DECIMAL NOT NULL DEFAULT 0,
+    "price" DECIMAL NOT NULL DEFAULT 0,
     CONSTRAINT "inbound_items_inbound_transaction_id_fkey" FOREIGN KEY ("inbound_transaction_id") REFERENCES "inbound_transactions"("inbound_transaction_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "inbound_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("product_id") ON DELETE RESTRICT ON UPDATE CASCADE
 );

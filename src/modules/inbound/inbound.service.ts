@@ -36,9 +36,12 @@ export const createinboundTransaction = async (data: inboundTransactionData) => 
         },
       });
 
-      await tx.monitorStock.update({
+      // Produk yang baru dibuat lewat Manage Products belum punya baris monitor_stock,
+      // jadi baris pertamanya dibuat di sini (update saja akan gagal P2025).
+      await tx.monitorStock.upsert({
         where: { productId: item.productId },
-        data: { currentStock: { increment: item.qty } },
+        create: { productId: item.productId, currentStock: item.qty },
+        update: { currentStock: { increment: item.qty } },
       });
 
       await tx.product.update({
