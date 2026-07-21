@@ -1,13 +1,21 @@
 import { Prisma } from "@prisma/client";
 import prisma from "../../prisma";
 
+// endDate dari input <date> = tengah malam, jadi transaksi di hari itu
+// (jam > 00:00) ikut kefilter. Dorong ke akhir hari biar inklusif.
+const endOfDay = (d: Date) => {
+  const e = new Date(d);
+  e.setHours(23, 59, 59, 999);
+  return e;
+};
+
 // Filter rentang tanggal yang dipakai kelima laporan.
 const dateWhere = (startDate?: Date, endDate?: Date) =>
   startDate || endDate
     ? {
         createdAt: {
           ...(startDate && { gte: startDate }),
-          ...(endDate && { lte: endDate }),
+          ...(endDate && { lte: endOfDay(endDate) }),
         },
       }
     : {};
