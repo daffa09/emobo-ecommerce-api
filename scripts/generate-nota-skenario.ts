@@ -5,7 +5,7 @@
  * datanya ada -- file ini yang di-upload manual di halaman Barang Masuk.
  *
  * Jalankan:  npx tsx scripts/generate-nota-skenario.ts
- * Hasil:     uploads/skenario/NOTA-SKENARIO-01.pdf dan NOTA-SKENARIO-02.pdf
+ * Hasil:     uploads/skenario/NOTA-SKENARIO.pdf
  */
 import path from "path";
 import fs from "fs/promises";
@@ -39,21 +39,11 @@ type Baris = { sku: string; nama: string; qty: number; buyPrice: number };
 // Angka di sini harus persis sama dengan yang ada di SKENARIO_UJI_MANUAL.md.
 const NOTA: { nomor: string; tanggal: string; totalTertulis: number; catatan: string; items: Baris[] }[] = [
   {
-    nomor: "NOTA-SKENARIO-01",
+    nomor: "NOTA-SKENARIO",
     tanggal: "12 Juli 2026",
-    totalTertulis: 8, // sama dengan jumlah qty -> skenario "Quantity Matched"
-    catatan: "Pembelian unit demo batch pertama",
-    items: [
-      { sku: "ASUS-TUF-A15-DEMO", nama: "Asus TUF Gaming A15 FA506NF", qty: 5, buyPrice: 11500000 },
-      { sku: "HP-VICT-16-DEMO", nama: "HP Victus 16 fb0121AX", qty: 3, buyPrice: 13000000 },
-    ],
-  },
-  {
-    nomor: "NOTA-SKENARIO-02",
-    tanggal: "14 Juli 2026",
-    totalTertulis: 3, // qty yang diinput cuma 2 -> skenario "Quantity Mismatched"
-    catatan: "Tertulis 3 unit, 1 unit ditolak karena dus penyok",
-    items: [{ sku: "ASUS-TUF-A15-DEMO", nama: "Asus TUF Gaming A15 FA506NF", qty: 2, buyPrice: 11500000 }],
+    totalTertulis: 5, // sama dengan jumlah qty -> skenario "Quantity Matched"
+    catatan: "Pembelian unit demo",
+    items: [{ sku: "ASUS-TUF-A15", nama: "Asus TUF Gaming A15 FA506NF", qty: 5, buyPrice: 11500000 }],
   },
 ];
 
@@ -85,6 +75,7 @@ async function main() {
 
   for (const n of NOTA) {
     let total = 0;
+    let totalQty = 0;
     const body: any[] = [
       [
         { text: "No.", style: "th" },
@@ -99,6 +90,7 @@ async function main() {
     n.items.forEach((it, i) => {
       const sub = it.buyPrice * it.qty;
       total += sub;
+      totalQty += it.qty;
       body.push([
         { text: String(i + 1), style: "td" },
         { text: it.sku, style: "td" },
@@ -164,6 +156,7 @@ async function main() {
                 table: {
                   widths: ["*", "auto"],
                   body: [
+                    [{ text: `Total Qty (${totalQty} unit)`, style: "td" }, { text: `${totalQty} pcs`, style: "td", alignment: "right" }],
                     [{ text: "Subtotal", style: "td" }, { text: rupiah(total), style: "td", alignment: "right" }],
                     [
                       { text: "PPN 11% (termasuk)", style: "td" },

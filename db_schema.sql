@@ -65,8 +65,8 @@ CREATE TABLE "profiles" (
     "image" TEXT,
     "address" VARCHAR(255),
     "address_notes" VARCHAR(255),
-    "province_id" UUID,
-    "city_id" UUID,
+    "province_id" TEXT,
+    "city_id" TEXT,
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION
 );

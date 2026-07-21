@@ -354,9 +354,9 @@ INSERT INTO cust_seed VALUES
 ('Hendra Wijaya',       'hendra.wijaya@gmail.com',     '081234567811', 'Jl. Asia Afrika No. 33, Regol',            'Bandung',         'Jawa Barat'),
 ('Rina Marlina',        'rina.marlina@gmail.com',      '081234567812', 'Jl. Panglima Polim No. 5, Kebayoran Baru', 'Jakarta Selatan', 'DKI Jakarta');
 
--- profiles.city_id / province_id bertipe UUID (relasi ke master wilayah yang
--- belum ada isinya), jadi nama kota & provinsi disimpan di alamat dan di
--- shipping_addr order, bukan di kolom itu.
+-- profiles.city_id / province_id bertipe TEXT (kode wilayah dari master
+-- wilayah yang belum ada isinya), jadi nama kota & provinsi disimpan di alamat
+-- dan di shipping_addr order, bukan di kolom itu.
 WITH ins_profile AS (
     INSERT INTO "profiles" ("name", "phone", "address")
     SELECT name, phone, address || ', ' || city || ', ' || province FROM cust_seed

@@ -51,8 +51,8 @@ model Profile {
   image        String? @db.Text
   address      String? @db.VarChar(255)
   addressNotes String? @map("address_notes") @db.VarChar(255)
-  provinceId   String? @db.Uuid @map("province_id")
-  cityId       String? @db.Uuid @map("city_id")
+  provinceId   String? @map("province_id")
+  cityId       String? @map("city_id")
   latitude     Float?  @db.DoublePrecision
   longitude    Float?  @db.DoublePrecision
 
