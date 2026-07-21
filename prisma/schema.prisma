@@ -191,6 +191,9 @@ model Payment {
   snapToken   String?       @map("snap_token") @db.VarChar(255)
   redirectUrl String?       @map("redirect_url") @db.VarChar(255)
   amount      Decimal       @db.Decimal
+  installmentNo    Int      @default(1) @map("installment_no")
+  installmentTotal Int      @default(1) @map("installment_total")
+  paidAmount       Decimal  @default(0) @map("paid_amount") @db.Decimal
   status      PaymentStatus @default(PENDING)
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")

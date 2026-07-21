@@ -23,6 +23,18 @@ const midtransApiUrl = MIDTRANS_IS_PRODUCTION
   ? "https://api.midtrans.com/v2"
   : "https://api.sandbox.midtrans.com/v2";
 
+// ponytail: limit per transaksi Snap Midtrans; naikkan/turunkan kalau limit akun beda
+const MIDTRANS_MAX_AMOUNT = 10_000_000;
+
+// Bagi total rata jadi n termin (n = ceil(total/limit)), sum(termin) === total,
+// tiap termin bilangan bulat & <= limit. total <= limit -> [total] (1x, seperti dulu).
+export function splitInstallments(total: number, limit = MIDTRANS_MAX_AMOUNT): number[] {
+  const n = Math.max(1, Math.ceil(total / limit));
+  const base = Math.floor(total / n);
+  const rem = total - base * n; // 0..n-1, dibagi +1 ke termin-termin awal
+  return Array.from({ length: n }, (_, i) => base + (i < rem ? 1 : 0));
+}
+
 export const createPayment = async (orderId: string) => {
   const gateway = process.env.PAYMENT_GATEWAY || "midtrans";
   
@@ -112,13 +124,22 @@ const createMidtransPayment = async (orderId: string) => {
   if (!order) throw new Error("Order not found");
 
   const existing = await prisma.payment.findUnique({ where: { orderId } });
-  if (existing && existing.redirectUrl) return existing;
+  // Link termin aktif masih hidup (belum dibayar) -> pakai ulang. Kalau redirectUrl
+  // sudah dikosongkan (habis maju termin / retry) -> generate baru di bawah.
+  if (existing && existing.redirectUrl && existing.status === "PENDING") return existing;
+
+  // Pecah jadi termin kalau total di atas limit Midtrans; termin aktif dari row lama.
+  const amounts = splitInstallments(Math.round(Number(order.total_grand)));
+  const installmentNo = existing?.installmentNo ?? 1;
+  const installmentTotal = amounts.length;
+  const gross = amounts[installmentNo - 1];
+  const midtransOrderId = installmentTotal > 1 ? `${orderId}-${installmentNo}` : orderId;
 
   const frontendUrl = process.env.FRONTEND_URL || "https://skripsi.daffathan-labs.my.id";
   const payload = {
     transaction_details: {
-      order_id: orderId,
-      gross_amount: Number(order.total_grand),
+      order_id: midtransOrderId,
+      gross_amount: gross,
     },
     customer_details: {
       first_name: order.profile?.name || "Customer",
@@ -146,18 +167,24 @@ const createMidtransPayment = async (orderId: string) => {
       where: { orderId },
       update: {
         provider: "midtrans",
-        providerId: orderId,
+        providerId: midtransOrderId,
         snapToken: snapData.token,
         redirectUrl: snapData.redirect_url,
-        amount: order.total_grand,
+        amount: gross,
+        installmentNo,
+        installmentTotal,
+        status: "PENDING",
+        // paidAmount sengaja tidak di-set di sini biar akumulasi termin lama tetap
       },
       create: {
         orderId,
         provider: "midtrans",
-        providerId: orderId,
+        providerId: midtransOrderId,
         snapToken: snapData.token,
         redirectUrl: snapData.redirect_url,
-        amount: order.total_grand,
+        amount: gross,
+        installmentNo,
+        installmentTotal,
         status: "PENDING",
       },
     });
@@ -202,25 +229,63 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
 
   console.log(`[PAYMENT DEBUG] Determined final payment status: ${paymentStatus}`);
 
-  const updatedPayment = await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: paymentStatus === "PAID" ? "PAID" : paymentStatus === "FAILED" ? "FAILED" : "PENDING",
-      paidAt: paymentStatus === "PAID" ? new Date() : null,
-    },
-  });
-
-  console.log(`[PAYMENT DEBUG] Updated payment record in DB. New status: ${updatedPayment.status}`);
+  // Termin: order bisa dibayar bertahap. paidAmount menumpuk tiap termin lunas;
+  // order baru PROCESSING setelah termin terakhir dibayar.
+  const isLastInstallment = payment.installmentNo >= payment.installmentTotal;
 
   if (paymentStatus === "PAID") {
-    console.log(`[PAYMENT DEBUG] Updating Order ${orderId} status to PROCESSING`);
+    const paidNow = Number(payment.paidAmount) + Number(payment.amount);
+
+    if (!isLastInstallment) {
+      // Termin ini lunas tapi belum semua. Maju ke termin berikutnya, order tetap PENDING.
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          paidAmount: paidNow,
+          installmentNo: payment.installmentNo + 1,
+          status: "PENDING",
+          redirectUrl: null,
+          snapToken: null,
+          providerId: null, // rotasi: webhook termin lama yang replay tak ketemu row -> no double-advance
+          paidAt: null,
+          amount: 0, // di-set ulang saat createPayment generate termin berikutnya
+        },
+      });
+      console.log(`[PAYMENT DEBUG] Termin ${payment.installmentNo}/${payment.installmentTotal} PAID for ${orderId}. Advancing; paidAmount=${paidNow}`);
+      return updatedPayment;
+    }
+
+    // Termin terakhir -> lunas penuh.
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "PAID", paidAmount: paidNow, paidAt: new Date() },
+    });
+    console.log(`[PAYMENT DEBUG] Order ${orderId} fully paid. Updating status to PROCESSING`);
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: { status: "PROCESSING" },
     });
     console.log(`[PAYMENT DEBUG] Order ${orderId} updated successfully to ${updatedOrder.status}`);
-  } else if (paymentStatus === "FAILED") {
+    return updatedPayment;
+  }
+
+  if (paymentStatus === "FAILED") {
     console.log(`[PAYMENT DEBUG] Handling failed payment for Order ${orderId}`);
+    // ponytail: refund parsial di luar scope; termin yang gagal cukup di-retry
+    if (Number(payment.paidAmount) > 0) {
+      // Sudah ada termin dibayar -> jangan batalkan order/restore stok. Reset link termin aktif saja.
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "PENDING", redirectUrl: null, snapToken: null },
+      });
+      console.log(`[PAYMENT DEBUG] Termin gagal tapi ${orderId} sudah bayar sebagian; link di-reset untuk retry`);
+      return updatedPayment;
+    }
+
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED", paidAt: null },
+    });
     const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
     if (order && order.status === "PENDING") {
       await prisma.$transaction(async (tx) => {
@@ -228,7 +293,7 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
           where: { id: orderId },
           data: { status: "CANCELLED" }
         });
-        
+
         for (const item of order.items) {
           await tx.monitorStock.update({
             where: { productId: item.productId },
@@ -238,9 +303,14 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
       });
       console.log(`[PAYMENT DEBUG] Order ${orderId} cancelled and stock restored`);
     }
+    return updatedPayment;
   }
 
-  return updatedPayment;
+  // PENDING
+  return prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: "PENDING", paidAt: null },
+  });
 };
 
 export const handleWebhookCallback = async (data: any) => {

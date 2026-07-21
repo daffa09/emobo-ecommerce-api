@@ -588,7 +588,8 @@ JOIN "products" p ON p."sku" = s.sku;
 -- Pembayaran: order berstatus PENDING belum punya baris pembayaran.
 INSERT INTO "payments" (
     "order_id", "provider", "provider_id", "snap_token", "redirect_url",
-    "amount", "status", "created_at", "updated_at", "paid_at"
+    "amount", "installment_no", "installment_total", "paid_amount",
+    "status", "created_at", "updated_at", "paid_at"
 )
 SELECT
     o."order_id",
@@ -597,6 +598,9 @@ SELECT
     md5(o."order_id" || 'snap'),
     'https://app.sandbox.midtrans.com/snap/v3/redirection/' || md5(o."order_id" || 'snap'),
     o."total_grand",
+    1,
+    1,
+    (CASE WHEN o."status" = 'CANCELLED' THEN 0 ELSE o."total_grand" END),
     (CASE WHEN o."status" = 'CANCELLED' THEN 'FAILED' ELSE 'PAID' END)::"PaymentStatus",
     o."created_at",
     o."created_at",
