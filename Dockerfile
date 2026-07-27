@@ -49,5 +49,5 @@ ENV PORT=5000
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Run the app
-CMD ["npm", "start"]
+# Run the app (skema DB ikut naik tiap deploy, biar tidak mismatch sama dist/)
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
