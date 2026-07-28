@@ -23,25 +23,46 @@ const midtransApiUrl = MIDTRANS_IS_PRODUCTION
   ? "https://api.midtrans.com/v2"
   : "https://api.sandbox.midtrans.com/v2";
 
-// ponytail: limit per transaksi Snap Midtrans; naikkan/turunkan kalau limit akun beda
+// ponytail: Midtrans Snap per-transaction limit; raise/lower if the account limit differs
 const MIDTRANS_MAX_AMOUNT = 10_000_000;
 
-// Bagi total rata jadi n termin (n = ceil(total/limit)), sum(termin) === total,
-// tiap termin bilangan bulat & <= limit. total <= limit -> [total] (1x, seperti dulu).
-export function splitInstallments(total: number, limit = MIDTRANS_MAX_AMOUNT): number[] {
-  const n = Math.max(1, Math.ceil(total / limit));
-  const base = Math.floor(total / n);
-  const rem = total - base * n; // 0..n-1, dibagi +1 ke termin-termin awal
-  return Array.from({ length: n }, (_, i) => base + (i < rem ? 1 : 0));
+// ponytail: arbitrary sane ceiling, raise if a real case needs more
+const MAX_INSTALLMENTS = 12;
+
+// Only the subtotal (goods) is split evenly. `extras` (shipping + app fee) is
+// attached to the LAST installment, so shipping is never spread across payments.
+//
+// room = limit - extras leaves headroom for that last installment, otherwise
+// ceil(total/limit) can produce a final installment above the Midtrans limit
+// (e.g. subtotal 19_974_000 + extras 26_000 -> 2 x 9_987_000, last = 10_013_000).
+//
+// Guarantees: sum(parts) === subtotal + extras, every part is an integer <= limit.
+// subtotal <= room -> [subtotal + extras] (single payment, as before).
+export function splitInstallments(
+  subtotal: number,
+  extras = 0,
+  limit = MIDTRANS_MAX_AMOUNT,
+  count?: number
+): number[] {
+  const room = Math.max(1, limit - extras);
+  const min = Math.max(1, Math.ceil(subtotal / room));
+  // Clamping doubles as trust-boundary validation: `count` comes from the client.
+  const n = Math.min(Math.max(count ?? min, min), MAX_INSTALLMENTS);
+  const base = Math.floor(subtotal / n);
+  const rem = subtotal - base * n; // 0..n-1, spread as +1 over the earliest installments
+  const parts = Array.from({ length: n }, (_, i) => base + (i < rem ? 1 : 0));
+  // rem <= n-1, so the last part never takes a +1 -> base + extras <= room + extras = limit
+  parts[n - 1] += extras;
+  return parts;
 }
 
-export const createPayment = async (orderId: string) => {
+export const createPayment = async (orderId: string, installments?: number) => {
   const gateway = process.env.PAYMENT_GATEWAY || "midtrans";
-  
+
   if (gateway === "flip") {
     return createFlipPayment(orderId);
   } else {
-    return createMidtransPayment(orderId);
+    return createMidtransPayment(orderId, installments);
   }
 };
 
@@ -110,7 +131,7 @@ const createFlipPayment = async (orderId: string) => {
   }
 };
 
-const createMidtransPayment = async (orderId: string) => {
+const createMidtransPayment = async (orderId: string, installments?: number) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -124,12 +145,17 @@ const createMidtransPayment = async (orderId: string) => {
   if (!order) throw new Error("Order not found");
 
   const existing = await prisma.payment.findUnique({ where: { orderId } });
-  // Link termin aktif masih hidup (belum dibayar) -> pakai ulang. Kalau redirectUrl
-  // sudah dikosongkan (habis maju termin / retry) -> generate baru di bawah.
+  // The active installment link is still alive (unpaid) -> reuse it. If redirectUrl
+  // was cleared (installment advanced / retry) -> generate a new one below.
   if (existing && existing.redirectUrl && existing.status === "PENDING") return existing;
 
-  // Pecah jadi termin kalau total di atas limit Midtrans; termin aktif dari row lama.
-  const amounts = splitInstallments(Math.round(Number(order.total_grand)));
+  const total = Math.round(Number(order.total_grand));
+  const extras = Math.round(Number(order.shippingCost) + Number(order.appFee));
+
+  // The installment count is locked when the payment row is first created; later
+  // calls (retry / next installment) always reuse the stored value.
+  const chosen = existing?.installmentTotal ?? installments;
+  const amounts = splitInstallments(total - extras, extras, MIDTRANS_MAX_AMOUNT, chosen);
   const installmentNo = existing?.installmentNo ?? 1;
   const installmentTotal = amounts.length;
   const gross = amounts[installmentNo - 1];
@@ -174,7 +200,7 @@ const createMidtransPayment = async (orderId: string) => {
         installmentNo,
         installmentTotal,
         status: "PENDING",
-        // paidAmount sengaja tidak di-set di sini biar akumulasi termin lama tetap
+        // paidAmount is deliberately left alone here so earlier installments stay accumulated
       },
       create: {
         orderId,
@@ -229,15 +255,15 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
 
   console.log(`[PAYMENT DEBUG] Determined final payment status: ${paymentStatus}`);
 
-  // Termin: order bisa dibayar bertahap. paidAmount menumpuk tiap termin lunas;
-  // order baru PROCESSING setelah termin terakhir dibayar.
+  // Installments: an order can be paid in stages. paidAmount accumulates as each
+  // installment settles; the order only moves to PROCESSING after the last one.
   const isLastInstallment = payment.installmentNo >= payment.installmentTotal;
 
   if (paymentStatus === "PAID") {
     const paidNow = Number(payment.paidAmount) + Number(payment.amount);
 
     if (!isLastInstallment) {
-      // Termin ini lunas tapi belum semua. Maju ke termin berikutnya, order tetap PENDING.
+      // This installment settled but others remain. Advance; the order stays PENDING.
       const updatedPayment = await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -246,16 +272,16 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
           status: "PENDING",
           redirectUrl: null,
           snapToken: null,
-          providerId: null, // rotasi: webhook termin lama yang replay tak ketemu row -> no double-advance
+          providerId: null, // rotated: a replayed webhook for the old installment finds no row -> no double-advance
           paidAt: null,
-          amount: 0, // di-set ulang saat createPayment generate termin berikutnya
+          amount: 0, // set again when createPayment generates the next installment
         },
       });
-      console.log(`[PAYMENT DEBUG] Termin ${payment.installmentNo}/${payment.installmentTotal} PAID for ${orderId}. Advancing; paidAmount=${paidNow}`);
+      console.log(`[PAYMENT DEBUG] Installment ${payment.installmentNo}/${payment.installmentTotal} PAID for ${orderId}. Advancing; paidAmount=${paidNow}`);
       return updatedPayment;
     }
 
-    // Termin terakhir -> lunas penuh.
+    // Last installment -> fully paid.
     const updatedPayment = await prisma.payment.update({
       where: { id: payment.id },
       data: { status: "PAID", paidAmount: paidNow, paidAt: new Date() },
@@ -271,14 +297,15 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
 
   if (paymentStatus === "FAILED") {
     console.log(`[PAYMENT DEBUG] Handling failed payment for Order ${orderId}`);
-    // ponytail: refund parsial di luar scope; termin yang gagal cukup di-retry
+    // ponytail: partial refunds are out of scope; a failed installment is simply retried
     if (Number(payment.paidAmount) > 0) {
-      // Sudah ada termin dibayar -> jangan batalkan order/restore stok. Reset link termin aktif saja.
+      // Some installments are already paid -> do not cancel the order or restore stock.
+      // Just reset the active installment link so it can be retried.
       const updatedPayment = await prisma.payment.update({
         where: { id: payment.id },
         data: { status: "PENDING", redirectUrl: null, snapToken: null },
       });
-      console.log(`[PAYMENT DEBUG] Termin gagal tapi ${orderId} sudah bayar sebagian; link di-reset untuk retry`);
+      console.log(`[PAYMENT DEBUG] Installment failed but ${orderId} is partially paid; link reset for retry`);
       return updatedPayment;
     }
 

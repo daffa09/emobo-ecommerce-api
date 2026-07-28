@@ -25,6 +25,19 @@ const router = Router();
  *         required: true
  *         schema:
  *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               installments:
+ *                 type: integer
+ *                 description: >
+ *                   How many installments to split the order into. Only honoured on the
+ *                   first call for an order; afterwards the stored value is reused so the
+ *                   choice cannot be changed. Clamped to the range the gateway limit allows.
  *     responses:
  *       201:
  *         description: Payment created

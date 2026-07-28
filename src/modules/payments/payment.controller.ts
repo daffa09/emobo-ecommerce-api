@@ -5,8 +5,11 @@ import prisma from "../../prisma";
 
 export const createPayment = async (req: Request, res: Response) => {
   const orderId = req.params.orderId;
+  // Optional: how many installments the customer picked at checkout. Only honoured on
+  // the first call for an order; the service clamps it to what the gateway limit allows.
+  const installments = Number(req.body?.installments) || undefined;
   try {
-    const payment = await service.createPayment(orderId);
+    const payment = await service.createPayment(orderId, installments);
     return sendResponse(res, 201, "payment created", payment);
   } catch (err: any) {
     console.error("Payment create error:", err);
