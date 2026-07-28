@@ -23,6 +23,11 @@ const midtransApiUrl = MIDTRANS_IS_PRODUCTION
   ? "https://api.midtrans.com/v2"
   : "https://api.sandbox.midtrans.com/v2";
 
+// ponytail: Xendit uses Secret Key only for basic auth (no client key required for Invoice UI)
+const XENDIT_SECRET_KEY = process.env.XENDIT_SECRET_KEY || "";
+const XENDIT_AUTH_HEADER = "Basic " + Buffer.from(XENDIT_SECRET_KEY + ":").toString("base64");
+const xenditInvoiceUrl = "https://api.xendit.co/v2/invoices";
+
 // ponytail: Midtrans Snap per-transaction limit; raise/lower if the account limit differs
 const MIDTRANS_MAX_AMOUNT = 10_000_000;
 
@@ -61,6 +66,8 @@ export const createPayment = async (orderId: string, installments?: number) => {
 
   if (gateway === "flip") {
     return createFlipPayment(orderId);
+  } else if (gateway === "xendit") {
+    return createXenditPayment(orderId, installments);
   } else {
     return createMidtransPayment(orderId, installments);
   }
@@ -222,6 +229,81 @@ const createMidtransPayment = async (orderId: string, installments?: number) => 
   }
 };
 
+const createXenditPayment = async (orderId: string, installments?: number) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { profile: { include: { user: true } } },
+  });
+
+  if (!order) throw new Error("Order not found");
+
+  const existing = await prisma.payment.findUnique({ where: { orderId } });
+  if (existing && existing.redirectUrl && existing.status === "PENDING") return existing;
+
+  const total = Math.round(Number(order.total_grand));
+  const extras = Math.round(Number(order.shippingCost) + Number(order.appFee));
+  const chosen = existing?.installmentTotal ?? installments;
+  const amounts = splitInstallments(total - extras, extras, MIDTRANS_MAX_AMOUNT, chosen);
+  const installmentNo = existing?.installmentNo ?? 1;
+  const installmentTotal = amounts.length;
+  const gross = amounts[installmentNo - 1];
+  const xenditOrderId = installmentTotal > 1 ? `${orderId}-${installmentNo}` : orderId;
+
+  const frontendUrl = process.env.FRONTEND_URL || "https://skripsi.daffathan-labs.my.id";
+  const payload = {
+    external_id: xenditOrderId,
+    amount: gross,
+    payer_email: order.profile?.user?.email || "customer@example.com",
+    description: `Payment for Order ${xenditOrderId}`,
+    success_redirect_url: `${frontendUrl}/customer/transactions/${orderId}`,
+    failure_redirect_url: `${frontendUrl}/customer/transactions/${orderId}`,
+    currency: "IDR",
+  };
+
+  console.log("Xendit Payload:", JSON.stringify(payload));
+
+  try {
+    const response = await axios.post(xenditInvoiceUrl, payload, {
+      headers: {
+        "Authorization": XENDIT_AUTH_HEADER,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const invoice = response.data;
+    
+    const payment = await prisma.payment.upsert({
+      where: { orderId },
+      update: {
+        provider: "xendit",
+        providerId: invoice.id,
+        snapToken: "",
+        redirectUrl: invoice.invoice_url,
+        amount: gross,
+        installmentNo,
+        installmentTotal,
+        status: "PENDING",
+      },
+      create: {
+        orderId,
+        provider: "xendit",
+        providerId: invoice.id,
+        snapToken: "",
+        redirectUrl: invoice.invoice_url,
+        amount: gross,
+        installmentNo,
+        installmentTotal,
+        status: "PENDING",
+      },
+    });
+
+    return payment;
+  } catch (error: any) {
+    console.error("Xendit Create Invoice Error:", error.response?.data || error.message);
+    throw new Error("Failed to create Xendit payment");
+  }
+};
+
 const updatePaymentAndOrder = async (providerId: string, transactionStatus: string) => {
   console.log(`[PAYMENT DEBUG] Processing status update for providerId ${providerId}`);
   console.log(`[PAYMENT DEBUG] Transaction Status: ${transactionStatus}`);
@@ -238,7 +320,7 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
 
   let paymentStatus: "PAID" | "FAILED" | "PENDING" = "PENDING";
 
-  if (transactionStatus === "SUCCESSFUL" || transactionStatus === "settlement" || transactionStatus === "capture") {
+  if (transactionStatus === "SUCCESSFUL" || transactionStatus === "settlement" || transactionStatus === "capture" || transactionStatus === "PAID" || transactionStatus === "SETTLED") {
     paymentStatus = "PAID";
   } else if (
     transactionStatus === "CANCELLED" ||
@@ -246,7 +328,8 @@ const updatePaymentAndOrder = async (providerId: string, transactionStatus: stri
     transactionStatus === "deny" ||
     transactionStatus === "cancel" ||
     transactionStatus === "expire" ||
-    transactionStatus === "failure"
+    transactionStatus === "failure" ||
+    transactionStatus === "EXPIRED"
   ) {
     paymentStatus = "FAILED";
   } else {
@@ -362,7 +445,7 @@ export const handleWebhookCallback = async (data: any) => {
     parsedData = parsedData[0];
   }
 
-  const providerId = parsedData.order_id?.toString() || parsedData.bill_link_id?.toString() || parsedData.link_id?.toString() || parsedData.id?.toString();
+  const providerId = parsedData.order_id?.toString() || parsedData.bill_link_id?.toString() || parsedData.link_id?.toString() || parsedData.id?.toString() || parsedData.external_id?.toString();
 
   if (!providerId) {
     console.error("Payload invalid, cannot find order_id or link_id:", parsedData);
@@ -371,7 +454,12 @@ export const handleWebhookCallback = async (data: any) => {
 
   console.log(`[PAYMENT DEBUG] Webhook trigger received for providerId/order_id ${providerId}`);
 
-  const payment = await prisma.payment.findFirst({ where: { providerId } });
+  let payment = await prisma.payment.findFirst({ where: { providerId } });
+  if (!payment && parsedData.external_id) {
+    // ponytail: fallback for Xendit webhooks matching by external_id if invoice id didn't match
+    payment = await prisma.payment.findFirst({ where: { providerId: parsedData.external_id.toString() } })
+           || await prisma.payment.findFirst({ where: { orderId: parsedData.external_id.toString().split('-')[0] } });
+  }
   
   if (!payment) {
     console.error(`[PAYMENT DEBUG] Payment not found in database for providerId: ${providerId}`);
@@ -431,6 +519,20 @@ export const verifyPayment = async (orderId: string) => {
       return await updatePaymentAndOrder(payment.providerId!, finalStatus);
     } catch (err: any) {
       console.error("Flip status check error:", err.response?.data || err.message);
+      return payment;
+    }
+  } else if (payment.provider === "xendit") {
+    try {
+      const response = await axios.get(`${xenditInvoiceUrl}/${payment.providerId}`, {
+        headers: { "Authorization": XENDIT_AUTH_HEADER },
+      });
+      const invoice = response.data;
+      console.log(`Xendit payment check response for ${payment.providerId}:`, JSON.stringify(invoice));
+      
+      const finalStatus = invoice.status || "PENDING";
+      return await updatePaymentAndOrder(payment.providerId!, finalStatus);
+    } catch (err: any) {
+      console.error("Xendit status check error:", err.response?.data || err.message);
       return payment;
     }
   } else {
