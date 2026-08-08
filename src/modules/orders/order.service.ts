@@ -2,6 +2,7 @@ import prisma from "../../prisma";
 import { getLatestStockMap } from "../products/product.service";
 import { isValidOrderStatus } from "../../utils/validation";
 import { sendNewOrderAdminEmail } from "../../utils/email";
+import { notifyAdmins } from "../notifications/notification.controller";
 
 export const createOrder = async (
   userId: string,
@@ -121,6 +122,13 @@ export const createOrder = async (
       unitPrice: oi.unitPrice,
     })),
   }).catch((e) => console.error("Failed to send new-order admin email:", e));
+
+  // Notifikasi in-app untuk admin. Tipe "ORDER" sudah punya ikon di lonceng dashboard.
+  notifyAdmins(
+    "New Order Received",
+    `Order ${order.id} from ${profile.profile?.name ?? profile.email} — Rp ${totalAmount.toLocaleString("id-ID")}`,
+    "ORDER"
+  ).catch((e) => console.error("Failed to notify admins of new order:", e));
 
   return order;
 };
