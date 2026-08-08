@@ -1,6 +1,7 @@
 import prisma from "../../prisma";
 import { getLatestStockMap } from "../products/product.service";
 import { isValidOrderStatus } from "../../utils/validation";
+import { sendNewOrderAdminEmail } from "../../utils/email";
 
 export const createOrder = async (
   userId: string,
@@ -11,7 +12,7 @@ export const createOrder = async (
   shippingService?: string,
   estimatedDays?: number
 ) => {
-  const profile = await prisma.user.findUnique({ where: { id: userId } });
+  const profile = await prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
   if (!profile) throw new Error("User not found");
   if (!profile.profileId) throw new Error("No profile"); const profileId = profile.profileId;
 
@@ -105,6 +106,21 @@ export const createOrder = async (
 
     return o;
   });
+
+  // ponytail: fire-and-forget di luar $transaction. SMTP Gmail bisa 1-3 detik dan
+  // checkout tidak boleh menunggunya; email gagal bukan kehilangan data. Naikkan ke
+  // queue kalau volume order bikin rate limit SMTP kepentok.
+  sendNewOrderAdminEmail({
+    orderId: order.id,
+    customerName: profile.profile?.name ?? profile.email,
+    customerEmail: profile.email,
+    total: totalAmount,
+    items: orderItemsData.map((oi) => ({
+      name: products.find((p: any) => p.id === oi.productId)?.name ?? oi.productId,
+      qty: oi.qty,
+      unitPrice: oi.unitPrice,
+    })),
+  }).catch((e) => console.error("Failed to send new-order admin email:", e));
 
   return order;
 };

@@ -61,3 +61,53 @@ export const sendPasswordResetEmail = async (email: string, token: string) =>
     "Reset Password",
     `${frontendUrl()}/reset-password?token=${token}`
   );
+
+/** Penerima notifikasi order baru. Lazy seperti frontendUrl() di atas. */
+const adminEmail = () => process.env.ADMIN_EMAIL || process.env.SMTP_USER || "";
+
+const rupiah = (n: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(n);
+
+export type NewOrderMail = {
+  orderId: string;
+  customerName: string;
+  customerEmail: string;
+  total: number;
+  items: { name: string; qty: number; unitPrice: number }[];
+};
+
+/** Body HTML email order baru. Diekspor terpisah supaya bisa dicek tanpa SMTP. */
+export const buildNewOrderHtml = (o: NewOrderMail) => `
+      <p><b>Order ID:</b> ${o.orderId}</p>
+      <p><b>Pembeli:</b> ${o.customerName} (${o.customerEmail})</p>
+      <table style="width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;">
+        <tr style="background:#f5f5f5;">
+          <th align="left" style="padding:8px;">Produk</th>
+          <th align="center" style="padding:8px;">Qty</th>
+          <th align="right" style="padding:8px;">Subtotal</th>
+        </tr>
+        ${o.items
+          .map(
+            (i) => `<tr>
+          <td style="padding:8px; border-top:1px solid #eee;">${i.name}</td>
+          <td align="center" style="padding:8px; border-top:1px solid #eee;">${i.qty}</td>
+          <td align="right" style="padding:8px; border-top:1px solid #eee;">${rupiah(i.unitPrice * i.qty)}</td>
+        </tr>`
+          )
+          .join("")}
+      </table>
+      <p style="font-size:16px;"><b>Total: ${rupiah(o.total)}</b></p>`;
+
+export const sendNewOrderAdminEmail = async (o: NewOrderMail) =>
+  send(
+    adminEmail(),
+    `Order Baru ${o.orderId} - ${rupiah(o.total)}`,
+    "Transaksi Baru Masuk",
+    buildNewOrderHtml(o),
+    "Lihat Detail Order",
+    `${frontendUrl()}/admin/transactions/${o.orderId}`
+  );
